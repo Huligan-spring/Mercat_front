@@ -220,9 +220,11 @@ El proyecto se estructura en módulos especializados para mantener una arquitect
    - Contiene las funciones `fetch` que hablan con Render.
    - Incluye la función `pingBackend()`, que realiza una llamada silenciosa al abrir la app para "despertar" el servidor de Render antes de que el usuario escanee su primer producto.
 2. **`src/js/scanner.js`:**
-   - Controla la cámara mediante la librería `html5-qrcode`.
-   - Incorpora control de linterna (*torch*) y un generador sintético de sonido *Beep* mediante la API nativa de audio del navegador (sin necesidad de archivos MP3 externos).
-   - Añade un control de rebote (*debounce*) de 2.2 segundos para que no se sume dos veces el mismo producto por error al sostenerlo delante del objetivo.
+   - Controla la cámara y la decodificación en tiempo real mediante `html5-qrcode`.
+   - Activa aceleración nativa por hardware (`BarcodeDetector` en C++/GPU en navegadores compatibles) y muestreo a 20 FPS con marco de lectura enfocado (`qrbox`), optimizando el rendimiento en procesadores móviles.
+   - Decodifica tanto códigos de barras lineales tradicionales (EAN-13, EAN-8, UPC, Code 128) como códigos QR dinámicos de Mercadona (GS1 Digital Link para productos de peso variable en carne/pescado), extrayendo el GTIN y el precio inyectado.
+   - Incorpora protección anti-duplicados: pausa inmediata al detectar el producto, reanudación automática tras 1.8 segundos y tiempo de enfriamiento de 3.5 segundos para evitar lecturas repetidas si el usuario mantiene el producto frente a la cámara.
+   - Proporciona control de linterna (*torch*) y feedback sensorial sutil (*Beep* sintético Web Audio y vibración háptica).
 3. **`src/js/cart.js`:**
    - Gestiona el array de productos de la compra activa.
    - Guarda los cambios en `localStorage` inmediatamente para no perder la compra si la pantalla del móvil se apaga.

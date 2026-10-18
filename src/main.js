@@ -14,7 +14,7 @@
 
 import './css/style.css';
 import { pingBackend, getProductByBarcode, createProduct, savePurchase } from './js/api.js';
-import { startScanner, pauseScanner, resumeScanner, toggleTorch, isScannerRunning, isCameraPaused } from './js/scanner.js';
+import { startScanner, pauseScanner, resumeScanner, toggleTorch, isScannerRunning, isCameraPaused, resetLastScannedCode } from './js/scanner.js';
 import { loadCart, getCartItems, addProductToCart, incrementQuantity, decrementQuantity, removeProduct, clearCart, calculateTotal, formatEur } from './js/cart.js';
 import { getStoredBudget, saveBudget, evaluateBudget } from './js/budget.js';
 import { initModals, openModal, closeAllModals, showToast } from './js/modals.js';
@@ -183,8 +183,9 @@ function renderCart() {
  * Se ejecuta cada vez que el escáner de cámara o el buscador reciben un código.
  * 
  * @param {string} barcode Código de barras (ej: "8480000861900")
+ * @param {number|null} detectedPrice Precio detectado en código GS1 Digital Link
  */
-async function handleBarcodeDetected(barcode) {
+async function handleBarcodeDetected(barcode, detectedPrice = null) {
   if (!barcode) return;
 
   showToast(`Buscando código ${barcode}...`, 'search');
@@ -195,18 +196,27 @@ async function handleBarcodeDetected(barcode) {
 
     if (product) {
       // Caso de éxito: El producto ya está en Supabase
-      addProductToCart(product);
+      const itemToAdd = (detectedPrice !== null && !isNaN(detectedPrice))
+        ? { ...product, price: detectedPrice }
+        : product;
+
+      addProductToCart(itemToAdd);
       renderCart();
-      showToast(`Añadido: ${product.name} (${formatEur(product.price)})`, 'check_circle');
+      showToast(`Añadido: ${itemToAdd.name} (${formatEur(itemToAdd.price)})`, 'check_circle');
+
+      // Reanudación automática del escáner tras 1.8 segundos para poder continuar escaneando
+      setTimeout(() => {
+        resumeScanner();
+      }, 1800);
     } else {
       // Caso 404: El producto no existe aún en la base de datos
-      // Pausamos la cámara para que no siga escaneando de fondo
+      // Pausamos la cámara mientras se completa el formulario
       pauseScanner();
 
-      // Abrimos el modal didáctico para darlo de alta
+      // Abrimos el modal para darlo de alta
       newBarcodeEl.value = barcode;
       newNameEl.value = '';
-      newPriceEl.value = '';
+      newPriceEl.value = (detectedPrice !== null && !isNaN(detectedPrice)) ? detectedPrice : '';
 
       openModal('panel-add-product');
       newNameEl.focus();
@@ -215,6 +225,10 @@ async function handleBarcodeDetected(barcode) {
     }
   } catch (error) {
     showToast(`Error al consultar el producto: ${error.message}`, 'error');
+    // En caso de error, reanudar tras 2 segundos para no bloquear la cámara
+    setTimeout(() => {
+      resumeScanner();
+    }, 2000);
   }
 }
 
@@ -258,6 +272,7 @@ formAddProductEl?.addEventListener('submit', async (e) => {
 // Botones de cancelar en el modal de alta de producto
 function cancelNewProduct() {
   closeAllModals();
+  resetLastScannedCode();
   resumeScanner();
 }
 cancelAddProductBtn?.addEventListener('click', cancelNewProduct);
@@ -567,7 +582,30 @@ shoppingItemsContainer?.addEventListener('click', (e) => {
 // =========================================================================
 // 11. CONTROLES DE LA CÁMARA Y LINTERNA
 // =========================================================================
-btnToggleCamera?.addEventListener('click', () => {
+btnToggleCamera?.addEventListener('click', async () => {
+  if (!isScannerRunning()) {
+    const ok = await startScanner(
+      'interactive-scanner',
+      (detectedBarcode, detectedPrice) => {
+        handleBarcodeDetected(detectedBarcode, detectedPrice);
+      },
+      (err) => {
+        showToast('No se pudo acceder a la cámara', 'error');
+      }
+    );
+    if (ok) {
+      camIconEl.textContent = 'videocam';
+      camIconEl.className = 'material-symbols-outlined text-[18px] text-primary';
+      camTextEl.textContent = 'On';
+      camDotEl.className = 'w-2 h-2 rounded-full bg-primary animate-pulse';
+      camOverlayEl.classList.add('opacity-0', 'pointer-events-none');
+      camOverlayEl.classList.remove('opacity-100', 'pointer-events-auto');
+      if (laserBeamEl) laserBeamEl.style.display = 'flex';
+      showToast('Cámara activada (On)', 'videocam');
+    }
+    return;
+  }
+
   const isPaused = isCameraPaused();
   if (!isPaused) {
     pauseScanner();
@@ -664,8 +702,8 @@ async function initApp() {
   const scannerContainer = 'interactive-scanner';
   startScanner(
     scannerContainer,
-    (detectedBarcode) => {
-      handleBarcodeDetected(detectedBarcode);
+    (detectedBarcode, detectedPrice) => {
+      handleBarcodeDetected(detectedBarcode, detectedPrice);
     },
     (err) => {
       console.warn('[Scanner] Aviso de cámara:', err.message);

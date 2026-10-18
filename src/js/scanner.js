@@ -10,7 +10,7 @@
  * 4. El feedback sensorial (sonido beep sintético y vibración háptica).
  */
 
-import { Html5Qrcode, Html5QrcodeSupportedFormats } from 'html5-qrcode';
+import { Html5Qrcode, Html5QrcodeSupportedFormats, Html5QrcodeScannerState } from 'html5-qrcode';
 
 // Instancia única del escáner
 let html5QrCode = null;
@@ -19,21 +19,26 @@ let html5QrCode = null;
 let isScanning = false;
 let isTorchOn = false;
 let isPaused = false;
+let isProcessingScan = false;
+
+// Control anti-duplicados: tiempo de espera para el mismo código de barras
 let lastScannedCode = null;
 let lastScannedTimestamp = 0;
+const DUPLICATE_COOLDOWN_MS = 3500; // 3.5 segundos de enfriamiento para el MISMO código continuo
 
-// Configuración de formatos reconocidos en supermercados (principalmente EAN-13 y EAN-8)
+// Formatos reconocidos: EAN-13, EAN-8, UPC, Code 128 y códigos QR/DataMatrix (Mercadona GS1 Digital Link)
 const BARCODE_FORMATS = [
   Html5QrcodeSupportedFormats.EAN_13,
   Html5QrcodeSupportedFormats.EAN_8,
   Html5QrcodeSupportedFormats.UPC_A,
   Html5QrcodeSupportedFormats.UPC_E,
-  Html5QrcodeSupportedFormats.CODE_128
+  Html5QrcodeSupportedFormats.CODE_128,
+  Html5QrcodeSupportedFormats.QR_CODE,
+  Html5QrcodeSupportedFormats.DATA_MATRIX
 ];
 
 /**
  * Emite un "Beep" sutil usando la Web Audio API nativa.
- * De esta manera no necesitamos descargar archivos MP3 externos.
  */
 function playBeepSound() {
   try {
@@ -42,7 +47,7 @@ function playBeepSound() {
     const gain = audioCtx.createGain();
 
     osc.type = 'sine';
-    osc.frequency.setValueAtTime(1800, audioCtx.currentTime); // Frecuencia de 1.8kHz (beep limpio de caja registradora)
+    osc.frequency.setValueAtTime(1800, audioCtx.currentTime);
     gain.gain.setValueAtTime(0.15, audioCtx.currentTime);
     gain.gain.exponentialRampToValueAtTime(0.01, audioCtx.currentTime + 0.12);
 
@@ -51,9 +56,7 @@ function playBeepSound() {
 
     osc.start();
     osc.stop(audioCtx.currentTime + 0.12);
-  } catch (e) {
-    // Los navegadores restringen audio si no hay interacción previa del usuario
-  }
+  } catch (e) {}
 }
 
 /**
@@ -68,10 +71,10 @@ function triggerVibration() {
 }
 
 /**
- * Inicializa y arranca la cámara dentro del elemento contenedor especificado.
+ * Inicializa y arranca la cámara con aceleración por hardware nativa.
  * 
- * @param {string} elementId Identificador del contenedor DOM (ej: 'camera-viewport')
- * @param {Function} onCodeDetected Callback que se ejecuta al leer un código con éxito
+ * @param {string} elementId Identificador del contenedor DOM
+ * @param {Function} onCodeDetected Callback al detectar código con éxito (barcode, injectedPrice)
  * @param {Function} onError Callback en caso de fallo de permisos
  */
 export async function startScanner(elementId, onCodeDetected, onError) {
@@ -79,43 +82,75 @@ export async function startScanner(elementId, onCodeDetected, onError) {
     if (!html5QrCode) {
       html5QrCode = new Html5Qrcode(elementId, {
         formatsToSupport: BARCODE_FORMATS,
-        verbose: false
+        verbose: false,
+        // Activa el decodificador nativo BarcodeDetector del navegador (C++/GPU en Android)
+        experimentalFeatures: {
+          useBarCodeDetectorIfSupported: true
+        }
       });
     }
 
-    // Configuración de la cámara: preferir la cámara trasera ("environment")
     const cameraConfig = { facingMode: 'environment' };
 
-    // Configuración del área de análisis: aprovecha más del 90% del marco visible
+    // Configuración optimizada para máxima velocidad de lectura:
+    // - 20 FPS: muestreo rápido
+    // - qrbox enfocado: procesa hasta 3x menos píxeles por fotograma, evitando tirones en el móvil
     const scanConfig = {
-      fps: 15,
+      fps: 20,
       qrbox: (viewfinderWidth, viewfinderHeight) => {
-        const width = Math.min(viewfinderWidth * 0.95, 420);
-        const height = Math.min(viewfinderHeight * 0.85, 280);
-        return { width: Math.floor(width), height: Math.floor(height) };
+        const width = Math.min(Math.floor(viewfinderWidth * 0.85), 320);
+        const height = Math.min(Math.floor(viewfinderHeight * 0.65), 200);
+        return { width, height };
       },
       aspectRatio: 4 / 3
     };
 
-    // Callback interno cuando la librería detecta texto decodificado
     const onScanSuccess = (decodedText) => {
+      let barcode = decodedText.trim();
+      let injectedPrice = null;
+
+      // Soporte para códigos QR GS1 Digital Link de Mercadona (bandejas de carne y pescado)
+      // Ejemplo: https://qrtrack.mercadona.es/01/08436581961300/...&3922=00415
+      if (barcode.startsWith('http') && barcode.includes('/01/')) {
+        const gtinMatch = barcode.match(/\/01\/(\d+)/);
+        if (gtinMatch && gtinMatch[1]) {
+          const gtin = gtinMatch[1];
+          barcode = (gtin.length === 14 && gtin.startsWith('0')) ? gtin.substring(1) : gtin;
+        }
+
+        const priceMatch = barcode.match(/3922=(\d+)/);
+        if (priceMatch && priceMatch[1]) {
+          injectedPrice = parseInt(priceMatch[1], 10) / 100;
+        }
+      }
+
       const now = Date.now();
-      
-      // Control de rebote (Debounce): Evita que el mismo código se añada 10 veces en 2 segundos
-      if (decodedText === lastScannedCode && (now - lastScannedTimestamp) < 2200) {
+
+      // 1. Evita lecturas concurrentes mientras se procesa la petición
+      if (isProcessingScan) return;
+
+      // 2. Control anti-duplicados: si es el mismo código escaneado hace menos de 3.5s, ignorar
+      if (barcode === lastScannedCode && (now - lastScannedTimestamp) < DUPLICATE_COOLDOWN_MS) {
         return;
       }
 
-      lastScannedCode = decodedText;
+      isProcessingScan = true;
+      lastScannedCode = barcode;
       lastScannedTimestamp = now;
 
-      // Feedback al usuario (sonido y vibración)
+      // Pausa inmediata del sensor de la cámara para congelar y no duplicar
+      try {
+        if (html5QrCode && html5QrCode.getState() === Html5QrcodeScannerState.SCANNING) {
+          html5QrCode.pause(true);
+        }
+      } catch (e) {}
+      isPaused = true;
+
       playBeepSound();
       triggerVibration();
 
-      // Enviamos el código limpio a la lógica de la aplicación
       if (typeof onCodeDetected === 'function') {
-        onCodeDetected(decodedText.trim());
+        onCodeDetected(barcode, injectedPrice);
       }
     };
 
@@ -123,18 +158,18 @@ export async function startScanner(elementId, onCodeDetected, onError) {
       cameraConfig,
       scanConfig,
       onScanSuccess,
-      () => {
-        // Callback de frame no decodificado (normal cuando la cámara aún busca enfocar)
-      }
+      () => {}
     );
 
     isScanning = true;
     isPaused = false;
+    isProcessingScan = false;
     return true;
   } catch (err) {
-    console.warn('[Scanner] No se pudo iniciar el escáner real de la cámara:', err.message);
+    console.warn('[Scanner] Error iniciando cámara:', err.message);
     isScanning = false;
     isPaused = false;
+    isProcessingScan = false;
     if (typeof onError === 'function') {
       onError(err);
     }
@@ -143,26 +178,32 @@ export async function startScanner(elementId, onCodeDetected, onError) {
 }
 
 /**
- * Pausa la lectura y el vídeo.
+ * Pausa la lectura y el vídeo de forma segura.
  */
 export function pauseScanner() {
-  if (html5QrCode && isScanning) {
+  if (html5QrCode) {
     try {
-      html5QrCode.pause(true);
+      const state = html5QrCode.getState();
+      if (state === Html5QrcodeScannerState.SCANNING) {
+        html5QrCode.pause(true);
+      }
     } catch (e) {
       console.warn('[Scanner] Error al pausar cámara:', e);
     }
-    isPaused = true;
   }
+  isPaused = true;
 }
 
 /**
- * Reanuda la lectura y reproduce el vídeo.
+ * Reanuda la lectura y reproduce el vídeo de forma segura.
  */
 export function resumeScanner() {
-  if (html5QrCode && isScanning) {
+  if (html5QrCode) {
     try {
-      html5QrCode.resume();
+      const state = html5QrCode.getState();
+      if (state === Html5QrcodeScannerState.PAUSED) {
+        html5QrCode.resume();
+      }
       const videoEl = document.querySelector('#interactive-scanner video');
       if (videoEl && videoEl.paused) {
         videoEl.play().catch(() => {});
@@ -170,15 +211,30 @@ export function resumeScanner() {
     } catch (e) {
       console.warn('[Scanner] Error al reanudar cámara:', e);
     }
-    isPaused = false;
   }
+  isPaused = false;
+  isProcessingScan = false;
+}
+
+/**
+ * Reinicia la memoria del último código para permitir volver a escanearlo de inmediato si se desea.
+ */
+export function resetLastScannedCode() {
+  lastScannedCode = null;
+  lastScannedTimestamp = 0;
 }
 
 /**
  * Informa si la cámara está pausada actualmente.
  */
 export function isCameraPaused() {
-  return isPaused;
+  if (!html5QrCode) return true;
+  try {
+    const state = html5QrCode.getState();
+    return state === Html5QrcodeScannerState.PAUSED || isPaused;
+  } catch (e) {
+    return isPaused;
+  }
 }
 
 /**
@@ -190,6 +246,8 @@ export async function stopScanner() {
       await html5QrCode.stop();
       isScanning = false;
       isTorchOn = false;
+      isPaused = false;
+      isProcessingScan = false;
     } catch (err) {
       console.error('[Scanner] Error al detener la cámara:', err);
     }
@@ -223,8 +281,14 @@ export async function toggleTorch() {
 }
 
 /**
- * Comprueba si la cámara está activa en este momento.
+ * Comprueba si la cámara está activa (iniciada) en este momento.
  */
 export function isScannerRunning() {
-  return isScanning;
+  if (!html5QrCode) return false;
+  try {
+    const state = html5QrCode.getState();
+    return state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED;
+  } catch (e) {
+    return isScanning;
+  }
 }

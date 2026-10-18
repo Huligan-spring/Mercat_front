@@ -1,22 +1,18 @@
 /**
  * =========================================================================
- * Service Worker: Mercat Asistent PWA
+ * Service Worker: Mercat Asistent PWA (Versión 2)
  * =========================================================================
  * 
- * ¿QUÉ HACE ESTE ARCHIVO?
- * Un Service Worker es un script en segundo plano que actúa como un "servidor proxy"
- * entre el navegador del usuario y la red. Permite que la aplicación funcione
- * incluso si en el supermercado no hay cobertura de datos (modo offline).
- * 
- * ESTRATEGIA:
- * 1. Para archivos estáticos (HTML, JS, CSS, iconos): Cache First (Caché primero).
- * 2. Para llamadas a la API REST (Spring Boot): Network First (Red primero),
- *    porque los precios y productos deben ser siempre los más recientes.
+ * ESTRATEGIA DIDÁCTICA Y EFICIENTE:
+ * 1. Para la página principal (HTML / navegación): NETWORK FIRST con fallback a caché.
+ *    Esto garantiza que si hay conexión, el usuario SIEMPRE vea la última versión desplegada.
+ *    Si no hay cobertura en el supermercado, entonces carga la versión guardada en caché.
+ * 2. Para archivos con hash (JS/CSS en assets): CACHE FIRST (ya que cambian de nombre en cada build).
+ * 3. Para la API externa (Render): NETWORK ONLY (precios y datos en tiempo real).
  */
 
-const CACHE_NAME = 'mercat-asistent-v1';
+const CACHE_NAME = 'mercat-asistent-v2';
 
-// Recursos esenciales que se guardan en el caché durante la instalación
 const STATIC_ASSETS = [
   './',
   './index.html',
@@ -24,25 +20,25 @@ const STATIC_ASSETS = [
   './icons/icon.svg'
 ];
 
-// Evento 'install': Se ejecuta cuando el Service Worker se registra por primera vez
+// Instalación: Guardar recursos básicos
 self.addEventListener('install', (event) => {
   event.waitUntil(
     caches.open(CACHE_NAME).then((cache) => {
-      // Guardamos los recursos iniciales
       return cache.addAll(STATIC_ASSETS);
     })
   );
-  // Fuerza al Service Worker a activarse inmediatamente
+  // Fuerza al Service Worker nuevo a activarse sin esperar a cerrar pestañas
   self.skipWaiting();
 });
 
-// Evento 'activate': Limpia cachés antiguos si hemos actualizado la versión
+// Activación: Borrar cachés viejos (v1, etc.)
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
         cacheNames.map((cache) => {
           if (cache !== CACHE_NAME) {
+            console.log('[SW] Eliminando caché antiguo:', cache);
             return caches.delete(cache);
           }
         })
@@ -52,37 +48,44 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Evento 'fetch': Intercepta las solicitudes que hace la aplicación
+// Intercepción de peticiones
 self.addEventListener('fetch', (event) => {
   const url = new URL(event.request.url);
 
-  // Si la petición es a nuestra API externa (Render), no la cacheamos por defecto
-  // para tener siempre el stock y precios reales
+  // 1. Ignorar llamadas a la API de Render
   if (url.origin.includes('onrender.com')) {
     return;
   }
 
-  // Para el resto de peticiones (interfaz gráfica), usamos estrategia de caché con fallback a red
+  // 2. Estrategia NETWORK-FIRST para el documento principal (index.html / navegación)
+  if (event.request.mode === 'navigate' || event.request.headers.get('accept')?.includes('text/html')) {
+    event.respondWith(
+      fetch(event.request)
+        .then((networkResponse) => {
+          if (networkResponse && networkResponse.status === 200) {
+            const responseToCache = networkResponse.clone();
+            caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
+          }
+          return networkResponse;
+        })
+        .catch(() => caches.match(event.request).then((cached) => cached || caches.match('./index.html')))
+    );
+    return;
+  }
+
+  // 3. Estrategia CACHE-FIRST para el resto de recursos estáticos (iconos, fuentes, bundle)
   event.respondWith(
     caches.match(event.request).then((cachedResponse) => {
       if (cachedResponse) {
         return cachedResponse;
       }
       return fetch(event.request).then((networkResponse) => {
-        // Si la respuesta es válida, la guardamos dinámicamente en el caché
         if (networkResponse && networkResponse.status === 200) {
           const responseToCache = networkResponse.clone();
-          caches.open(CACHE_NAME).then((cache) => {
-            cache.put(event.request, responseToCache);
-          });
+          caches.open(CACHE_NAME).then((cache) => cache.put(event.request, responseToCache));
         }
         return networkResponse;
       });
-    }).catch(() => {
-      // Si falla la red y no está en caché, devolvemos index.html como fallback
-      if (event.request.headers.get('accept')?.includes('text/html')) {
-        return caches.match('./index.html');
-      }
     })
   );
 });

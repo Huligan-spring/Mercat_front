@@ -33,6 +33,8 @@ function registerServiceWorker() {
       navigator.serviceWorker.register('./sw.js')
         .then((registration) => {
           console.log('[PWA] Service Worker registrado con éxito en el ámbito:', registration.scope);
+          // Comprueba si hay una nueva versión del Service Worker en el servidor
+          registration.update();
         })
         .catch((error) => {
           console.warn('[PWA] Error al registrar el Service Worker:', error.message);

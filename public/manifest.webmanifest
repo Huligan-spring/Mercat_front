@@ -1,0 +1,19 @@
+{
+  "name": "Mercat Asistent",
+  "short_name": "Mercat",
+  "description": "Tu asistente de compras en el supermercado: escanea códigos de barras y controla tu presupuesto en tiempo real.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#fbf9f6",
+  "theme_color": "#00652c",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "icons/icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,171 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ==========================================================================
+   Estilos Base y Adaptación Móvil (Safe Areas)
+   ========================================================================== */
+@layer base {
+  html, body {
+    min-height: 100%;
+    margin: 0;
+    padding: 0;
+    -webkit-tap-highlight-color: transparent;
+  }
+  
+  /* Soporte para el notch/isla dinámica de teléfonos móviles modernos */
+  .pb-safe {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  .pt-safe {
+    padding-top: env(safe-area-inset-top, 0px);
+  }
+  
+  main > :first-child {
+    margin-top: 0 !important;
+  }
+  main > :last-child {
+    margin-bottom: 0 !important;
+  }
+}
+
+/* Ocultar barra de scroll para una experiencia de App nativa limpia */
+::-webkit-scrollbar {
+  display: none;
+}
+
+/* ==========================================================================
+   Animaciones Didácticas e Interactivas de la Aplicación
+   ========================================================================== */
+
+/* 1. Barrido vertical del láser de escaneo */
+@keyframes scanSweep {
+  0% {
+    transform: translateY(-46px);
+    opacity: 0.6;
+  }
+  50% {
+    transform: translateY(46px);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-46px);
+    opacity: 0.6;
+  }
+}
+
+/* 2. Respiración suave de las esquinas del visor de la cámara */
+@keyframes cornerBreathe {
+  0%, 100% {
+    opacity: 0.8;
+    transform: scale(1);
+    filter: drop-shadow(0 0 3px rgba(121, 219, 141, 0.5));
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.03);
+    filter: drop-shadow(0 0 8px rgba(121, 219, 141, 0.9));
+  }
+}
+
+/* 3. Entrada escalonada de tarjetas añadidas a la cesta */
+@keyframes cardStagger {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* 4. Efecto de brillo (shimmer) en el botón principal de guardar */
+@keyframes shimmerGlow {
+  0% {
+    transform: translateX(-150%) skewX(-15deg);
+  }
+  50%, 100% {
+    transform: translateX(250%) skewX(-15deg);
+  }
+}
+
+/* 5. Pulso visual cuando el total de la compra cambia */
+@keyframes pricePulse {
+  0% {
+    transform: scale(1);
+  }
+  40% {
+    transform: scale(1.08);
+    color: #00652c;
+    text-shadow: 0 0 10px rgba(121, 219, 141, 0.4);
+  }
+  100% {
+    transform: scale(1);
+  }
+}
+
+/* Clases de utilidad vinculadas a las animaciones */
+.scanner-laser {
+  animation: scanSweep 2.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
+}
+
+.corner-anim {
+  animation: cornerBreathe 3s ease-in-out infinite;
+}
+
+.stagger-item {
+  animation: cardStagger 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.btn-shimmer::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 45%;
+  height: 100%;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.25), transparent);
+  animation: shimmerGlow 3.6s infinite;
+}
+
+.price-bump {
+  animation: pricePulse 0.35s ease-out;
+}
+
+/* Respuesta táctil para botones (efecto de pulsación en pantallas táctiles) */
+.btn-tactile {
+  transition: transform 0.12s ease-out;
+}
+.btn-tactile:active {
+  transform: scale(0.94) !important;
+}
+
+/* Transición fluida al eliminar un artículo del carrito */
+.cart-item-collapsing {
+  opacity: 0 !important;
+  transform: translateX(20px) scale(0.95) !important;
+  max-height: 0 !important;
+  margin-top: 0 !important;
+  margin-bottom: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  border-width: 0 !important;
+  overflow: hidden !important;
+  pointer-events: none;
+  transition: all 0.32s cubic-bezier(0.4, 0, 0.2, 1) !important;
+}
+
+/* Accesibilidad: si el usuario tiene activada la reducción de movimiento en su sistema */
+@media (prefers-reduced-motion: reduce) {
+  .scanner-laser, .corner-anim, .btn-shimmer::after, .price-bump, .stagger-item {
+    animation: none !important;
+  }
+}
+
+/* Contenedor del lector real de html5-qrcode para que ocupe todo el marco */
+#interactive-scanner video {
+  width: 100% !important;
+  height: 100% !important;
+  object-fit: cover !important;
+}

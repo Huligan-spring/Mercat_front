@@ -1,0 +1,417 @@
+<!DOCTYPE html>
+<html lang="es" class="h-full">
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover"/>
+  <title>Mercat Asistent - Escáner de Compras</title>
+  
+  <!-- Configuración PWA (Progressive Web App) -->
+  <meta name="theme-color" content="#00652c"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <link rel="manifest" href="./manifest.webmanifest"/>
+  <link rel="icon" type="image/svg+xml" href="./icons/icon.svg"/>
+  <link rel="apple-touch-icon" href="./icons/icon.svg"/>
+
+  <!-- Tipografías de Google Fonts: Inter y Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Plus+Jakarta+Sans:wght@600;700&display=swap" rel="stylesheet"/>
+  
+  <!-- Iconos de Material Symbols -->
+  <link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:opsz,wght,FILL,GRAD@20..48,100..700,0..1,-50..200" rel="stylesheet"/>
+
+  <!-- Hoja de estilos con Tailwind CSS -->
+  <link rel="stylesheet" href="./src/css/style.css"/>
+</head>
+
+<body class="bg-surface text-on-surface flex flex-col min-h-screen selection:bg-primary-container selection:text-on-primary-container">
+
+  <!-- =========================================================================
+       1. ENCABEZADO SUPERIOR FIJO (HEADER)
+       ========================================================================= -->
+  <header class="fixed top-0 w-full z-50 bg-surface/85 backdrop-blur-xl pt-safe shadow-[0_1px_8px_rgba(0,0,0,0.04)] border-b border-surface-container-high/40">
+    <div class="h-16 px-gutter flex items-center justify-between gap-space-sm">
+      
+      <!-- Marca y Logotipo -->
+      <div class="flex items-center gap-space-sm min-w-0">
+        <div class="w-9 h-9 rounded-xl bg-primary flex items-center justify-center text-on-primary shadow-sm shrink-0">
+          <span class="material-symbols-outlined text-[22px]">shopping_cart</span>
+        </div>
+        <div class="flex flex-col truncate">
+          <span class="font-headline-sm text-headline-sm text-primary tracking-tight leading-none">Mercat</span>
+          <span class="font-label-sm text-label-sm text-on-surface-variant truncate uppercase tracking-wider">Asistent</span>
+        </div>
+      </div>
+
+      <!-- Botones de Acción Rápida (Drawers) -->
+      <div class="flex items-center gap-space-xs shrink-0">
+        <button id="header-btn-guide" type="button" aria-label="Guía de uso" title="Guía didáctica" class="btn-tactile w-10 h-10 rounded-full flex items-center justify-center bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-primary transition-all">
+          <span class="material-symbols-outlined text-[20px]">help_outline</span>
+        </button>
+
+        <button id="header-btn-history" type="button" aria-label="Historial de compras" title="Historial" class="btn-tactile w-10 h-10 rounded-full flex items-center justify-center bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-primary transition-all">
+          <span class="material-symbols-outlined text-[20px]">receipt_long</span>
+        </button>
+
+        <button id="header-btn-list" type="button" aria-label="Lista de la compra" title="Lista previa" class="btn-tactile w-10 h-10 rounded-full flex items-center justify-center bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-primary transition-all">
+          <span class="material-symbols-outlined text-[20px]">checklist</span>
+        </button>
+
+        <button id="header-btn-profile" type="button" aria-label="Mi Presupuesto" title="Ajustar Presupuesto" class="btn-tactile w-10 h-10 rounded-full flex items-center justify-center bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-primary transition-all">
+          <span class="material-symbols-outlined text-[20px]">savings</span>
+        </button>
+      </div>
+
+    </div>
+  </header>
+
+  <!-- =========================================================================
+       2. CONTENIDO PRINCIPAL (MAIN)
+       ========================================================================= -->
+  <main class="flex-1 flex flex-col relative w-full pt-16 bg-surface" style="padding-bottom: 170px;">
+    <div class="flex flex-col w-full">
+
+      <!-- AVISO DE CONEXIÓN CON RENDER / COLD START -->
+      <div id="backend-status-banner" class="hidden px-gutter py-1.5 bg-amber-100 border-b border-amber-200 text-amber-800 text-[12px] flex items-center justify-center gap-1.5">
+        <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
+        <span>Conectando con la API en Render (puede tardar unos segundos)...</span>
+      </div>
+
+      <!-- VISOR DE CÁMARA Y RETÍCULA DE ESCANEO -->
+      <div class="px-gutter mb-space-md mt-3">
+        <div class="relative w-full aspect-[16/10] max-h-64 rounded-2xl overflow-hidden bg-inverse-surface shadow-md flex items-center justify-center select-none group border border-surface-container-high/40">
+          
+          <!-- Elemento donde html5-qrcode inyecta el stream de vídeo real -->
+          <div id="interactive-scanner" class="absolute inset-0 w-full h-full overflow-hidden bg-black flex items-center justify-center"></div>
+
+          <!-- Capa de brillo cuando la linterna está encendida -->
+          <div id="torch-ambient" class="absolute inset-0 bg-amber-200/20 mix-blend-screen opacity-0 transition-opacity duration-300 pointer-events-none"></div>
+
+          <!-- Degradado de viñeta para destacar el centro -->
+          <div class="absolute inset-0 bg-gradient-to-b from-inverse-surface/60 via-transparent to-inverse-surface/70 pointer-events-none"></div>
+
+          <!-- Marco de enfoque (Reticle Box) -->
+          <div id="reticle-box" class="relative w-4/5 max-w-xs h-32 flex items-center justify-center pointer-events-none z-10">
+            <!-- Esquinas con efecto de respiración -->
+            <div class="corner-anim absolute top-0 left-0 w-6 h-6 border-t-[3.5px] border-l-[3.5px] border-primary-fixed rounded-tl-lg"></div>
+            <div class="corner-anim absolute top-0 right-0 w-6 h-6 border-t-[3.5px] border-r-[3.5px] border-primary-fixed rounded-tr-lg" style="animation-delay: 0.15s;"></div>
+            <div class="corner-anim absolute bottom-0 left-0 w-6 h-6 border-b-[3.5px] border-l-[3.5px] border-primary-fixed rounded-bl-lg" style="animation-delay: 0.3s;"></div>
+            <div class="corner-anim absolute bottom-0 right-0 w-6 h-6 border-b-[3.5px] border-r-[3.5px] border-primary-fixed rounded-br-lg" style="animation-delay: 0.45s;"></div>
+
+            <!-- Láser animado de escaneo -->
+            <div id="scanner-laser-beam" class="scanner-laser absolute left-2 right-2 flex flex-col items-center pointer-events-none z-10">
+              <div class="w-full h-7 bg-gradient-to-t from-primary-fixed/20 to-transparent"></div>
+              <div class="w-full h-[2.5px] bg-gradient-to-r from-transparent via-primary-fixed to-transparent shadow-[0_0_14px_#79db8d]"></div>
+              <div class="w-full h-1 bg-gradient-to-b from-primary-fixed/25 to-transparent"></div>
+            </div>
+
+            <!-- Indicador textual central -->
+            <div id="reticle-label-wrap" class="flex flex-col items-center justify-center gap-1 opacity-70 pointer-events-none select-none">
+              <span class="material-symbols-outlined text-inverse-on-surface text-[28px] opacity-80">barcode</span>
+              <span class="font-label-sm text-label-sm text-inverse-on-surface tracking-wider uppercase font-semibold">Apunta al código</span>
+            </div>
+          </div>
+
+          <!-- Overlay cuando la cámara está pausada manualmente -->
+          <div id="camera-paused-overlay" class="absolute inset-0 bg-inverse-surface/90 flex flex-col items-center justify-center gap-2 opacity-0 pointer-events-none transition-opacity duration-300 z-20">
+            <span class="material-symbols-outlined text-outline-variant text-[36px]">videocam_off</span>
+            <span class="font-headline-sm text-sm text-inverse-on-surface font-semibold tracking-wide">Cámara pausada</span>
+          </div>
+
+        </div>
+      </div>
+
+      <!-- BOTONES DE CONTROL DE ESCÁNER (CÁMARA Y LINTERNA) -->
+      <div id="scanner-controls-bar" class="px-gutter mb-space-md">
+        <div class="flex items-center justify-center gap-3">
+          
+          <button id="btn-toggle-camera" type="button" class="btn-tactile flex-1 py-2 px-3 rounded-xl bg-surface-container-lowest border border-surface-container-high/60 shadow-sm flex items-center justify-center gap-2 text-on-surface hover:bg-surface-container transition-all">
+            <span id="camera-status-icon" class="material-symbols-outlined text-[18px] text-primary">videocam</span>
+            <span id="camera-status-text" class="font-label-md text-label-md font-semibold text-on-surface">Cámara: On</span>
+            <span id="camera-status-dot" class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
+          </button>
+
+          <button id="btn-toggle-torch-bar" type="button" class="btn-tactile flex-1 py-2 px-3 rounded-xl bg-surface-container-lowest border border-surface-container-high/60 shadow-sm flex items-center justify-center gap-2 text-on-surface hover:bg-surface-container transition-all">
+            <span id="torch-bar-icon" class="material-symbols-outlined text-[18px] text-on-surface-variant">flashlight_off</span>
+            <span id="torch-bar-text" class="font-label-md text-label-md font-semibold text-on-surface">Linterna: Off</span>
+            <span id="torch-bar-dot" class="w-2 h-2 rounded-full bg-outline-variant"></span>
+          </button>
+
+        </div>
+      </div>
+
+      <!-- BUSCADOR MANUAL / INTRODUCIR CÓDIGO A MANO -->
+      <div class="px-gutter mb-space-sm">
+        <form id="search-form" class="flex items-center gap-2" onsubmit="event.preventDefault();">
+          <div class="relative flex-1">
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant pointer-events-none">search</span>
+            <input id="search-product-input" type="text" placeholder="Buscar producto o escribir código..." class="w-full pl-10 pr-8 py-2 rounded-xl bg-surface-container-lowest border border-surface-container-high text-on-surface placeholder:text-outline font-body-md text-body-md focus:outline-none focus:ring-2 focus:ring-primary/40 shadow-sm transition-all"/>
+            <button id="clear-search-btn" type="button" aria-label="Limpiar búsqueda" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface hidden p-0.5 rounded-full">
+              <span class="material-symbols-outlined text-[16px] block">close</span>
+            </button>
+          </div>
+          <button id="search-product-btn" type="submit" aria-label="Buscar producto" class="btn-tactile h-10 px-4 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-label-md text-label-md font-semibold flex items-center justify-center gap-1.5 shrink-0 shadow-sm transition-all">
+            <span class="material-symbols-outlined text-[18px]">add_shopping_cart</span>
+            <span>Añadir</span>
+          </button>
+        </form>
+      </div>
+
+      <!-- LISTA DE ARTÍCULOS EN LA CESTA -->
+      <div id="cart-list" class="px-gutter flex flex-col gap-2.5 mb-space-lg">
+        <!-- Se rellena dinámicamente desde JavaScript (cart.js) -->
+      </div>
+
+      <!-- ESTADO VACÍO (CUANDO LA CESTA NO TIENE ARTÍCULOS) -->
+      <div id="empty-cart-state" class="px-gutter text-center py-10 flex flex-col items-center justify-center">
+        <div class="w-16 h-16 rounded-full bg-surface-container-low flex items-center justify-center text-outline-variant mb-2">
+          <span class="material-symbols-outlined text-[36px]">qr_code_scanner</span>
+        </div>
+        <p class="font-headline-sm text-sm font-semibold text-on-surface">Cesta lista para escanear</p>
+        <p class="font-body-sm text-on-surface-variant text-[13px] max-w-xs mt-1">Apunta con la cámara al código de barras de cualquier producto o búscalo arriba para añadirlo.</p>
+      </div>
+
+    </div>
+  </main>
+
+  <!-- =========================================================================
+       3. TARJETA INFERIOR FLOTANTE (RESUMEN Y PRESUPUESTO)
+       ========================================================================= -->
+  <div class="fixed left-0 right-0 z-40 bg-surface/95 backdrop-blur-md border-t border-surface-container-high px-gutter py-2.5 shadow-[0_-4px_20px_rgba(0,0,0,0.08)] bottom-0">
+    <div class="p-space-md rounded-2xl bg-surface-container-lowest shadow-md flex flex-col gap-space-sm border border-surface-container-high transition-shadow hover:shadow-xl">
+      
+      <!-- Fila de Total e Importe -->
+      <div class="flex flex-col gap-1.5">
+        <div class="flex items-center justify-between">
+          <span class="font-headline-sm text-headline-sm text-on-surface font-semibold tracking-tight">Total a pagar</span>
+          <span id="summary-total" class="font-headline-lg-mobile text-headline-lg-mobile font-bold text-primary-container tracking-tight transition-all duration-200 inline-block price-bump">0,00 €</span>
+        </div>
+
+        <!-- Barra Reactiva de Presupuesto -->
+        <div id="budget-progress-container" class="flex flex-col gap-1 pt-1">
+          <div class="flex items-center justify-between text-[11px] font-medium">
+            <span id="budget-progress-label" class="flex items-center gap-1 text-on-surface-variant">
+              <span id="budget-progress-icon" class="material-symbols-outlined text-[14px] text-primary transition-colors">savings</span>
+              <span>Presupuesto</span>
+            </span>
+            <span id="budget-progress-text" class="font-semibold text-primary transition-colors">0,00 € / 90,00 € (0%)</span>
+          </div>
+          <div class="w-full h-2 rounded-full bg-surface-container-high overflow-hidden relative">
+            <div id="budget-progress-bar" class="h-full bg-primary rounded-full transition-all duration-300 ease-out" style="width: 0%;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Botón de Guardar Compra (CTA) -->
+      <button id="save-purchase-btn" type="button" class="btn-shimmer btn-tactile relative overflow-hidden w-full h-12 px-6 rounded-full bg-primary-container text-on-primary hover:bg-secondary font-label-lg text-label-lg font-semibold flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer">
+        <span id="save-btn-icon" class="material-symbols-outlined text-[20px] transition-transform duration-200" style='font-variation-settings: "FILL" 1;'>check_circle</span>
+        <span id="save-btn-text">Guardar compra</span>
+      </button>
+
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       4. NOTIFICACIÓN FLOTANTE (TOAST)
+       ========================================================================= -->
+  <div id="toast" class="fixed top-20 left-1/2 -translate-x-1/2 z-50 transition-all duration-300 opacity-0 pointer-events-none -translate-y-2.5">
+    <div class="px-4 py-2.5 rounded-full bg-inverse-surface/95 backdrop-blur-md text-inverse-on-surface shadow-2xl flex items-center gap-2 border border-white/10">
+      <span id="toast-icon" class="material-symbols-outlined text-primary-fixed text-[18px]">check_circle</span>
+      <span id="toast-msg" class="font-label-md text-label-md font-medium">Mensaje informativo</span>
+    </div>
+  </div>
+
+  <!-- =========================================================================
+       5. PANELES DESPLEGABLES INFERIORES (DRAWERS / MODALES)
+       ========================================================================= -->
+  <div id="header-modals-backdrop" class="fixed inset-0 bg-inverse-surface/60 backdrop-blur-sm z-50 transition-opacity duration-300 opacity-0 pointer-events-none">
+    
+    <!-- MODAL 1: Lista de la compra previa -->
+    <div id="panel-shopping-list" data-drawer-panel class="absolute inset-x-0 bottom-0 max-h-[85vh] rounded-t-2xl bg-surface p-space-md shadow-2xl flex flex-col gap-3 transition-transform duration-300 translate-y-full">
+      <div class="flex items-center justify-between border-b border-surface-container-high pb-2">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary text-[22px]">checklist</span>
+          <span class="font-headline-sm text-headline-sm text-on-surface font-bold">Lista de la compra previa</span>
+        </div>
+        <button id="close-list-modal" type="button" class="btn-tactile w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-container text-on-surface-variant">
+          <span class="material-symbols-outlined text-[20px]">close</span>
+        </button>
+      </div>
+
+      <div class="flex gap-2">
+        <input id="new-list-item-input" type="text" placeholder="Añadir producto pendiente..." class="flex-1 px-3 py-2 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface text-body-md focus:outline-none focus:ring-2 focus:ring-primary/40"/>
+        <button id="add-list-item-btn" type="button" class="btn-tactile px-4 py-2 rounded-xl bg-primary text-on-primary font-label-md font-semibold shrink-0">Añadir</button>
+      </div>
+
+      <div id="shopping-items-container" class="flex flex-col gap-2 overflow-y-auto max-h-64 py-1">
+        <!-- Lista de tareas pendientes -->
+      </div>
+    </div>
+
+    <!-- MODAL 2: Historial de compras -->
+    <div id="panel-history" data-drawer-panel class="absolute inset-x-0 bottom-0 max-h-[85vh] rounded-t-2xl bg-surface p-space-md shadow-2xl flex flex-col gap-3 transition-transform duration-300 translate-y-full">
+      <div class="flex items-center justify-between border-b border-surface-container-high pb-2">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary text-[22px]">receipt_long</span>
+          <span class="font-headline-sm text-headline-sm text-on-surface font-bold">Historial de compras</span>
+        </div>
+        <button id="close-history-modal" type="button" class="btn-tactile w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-container text-on-surface-variant">
+          <span class="material-symbols-outlined text-[20px]">close</span>
+        </button>
+      </div>
+
+      <div id="history-items-container" class="flex flex-col gap-2.5 overflow-y-auto max-h-72 py-1">
+        <!-- Compras guardadas en la base de datos o localmente -->
+      </div>
+    </div>
+
+    <!-- MODAL 3: Guía de uso rápido didáctica -->
+    <div id="panel-guide" data-drawer-panel class="absolute inset-x-0 bottom-0 max-h-[85vh] rounded-t-2xl bg-surface p-space-md shadow-2xl flex flex-col gap-3 transition-transform duration-300 translate-y-full">
+      <div class="flex items-center justify-between border-b border-surface-container-high pb-2">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary text-[22px]">help_outline</span>
+          <span class="font-headline-sm text-headline-sm text-on-surface font-bold">Guía de uso didáctica</span>
+        </div>
+        <button id="close-guide-modal" type="button" class="btn-tactile w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-container text-on-surface-variant">
+          <span class="material-symbols-outlined text-[20px]">close</span>
+        </button>
+      </div>
+
+      <div class="flex flex-col gap-3 py-1 overflow-y-auto max-h-72">
+        <div class="flex items-start gap-3 p-3 rounded-xl bg-surface-container-lowest border border-surface-container-high">
+          <div class="w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-bold text-label-md shrink-0">1</div>
+          <div>
+            <div class="font-headline-sm text-[15px] font-bold text-on-surface">Apunta con la cámara</div>
+            <p class="font-body-sm text-on-surface-variant mt-0.5">Enfoca el código de barras (EAN-13) del producto en el recuadro verde. Sonará un pitido al reconocerlo.</p>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-3 p-3 rounded-xl bg-surface-container-lowest border border-surface-container-high">
+          <div class="w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-bold text-label-md shrink-0">2</div>
+          <div>
+            <div class="font-headline-sm text-[15px] font-bold text-on-surface">¿No existe el producto?</div>
+            <p class="font-body-sm text-on-surface-variant mt-0.5">Si es un producto nuevo en Mercadona, podrás escribir su nombre y precio para guardarlo en la base de datos.</p>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-3 p-3 rounded-xl bg-surface-container-lowest border border-surface-container-high">
+          <div class="w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-bold text-label-md shrink-0">3</div>
+          <div>
+            <div class="font-headline-sm text-[15px] font-bold text-on-surface">Controla tu presupuesto</div>
+            <p class="font-body-sm text-on-surface-variant mt-0.5">La barra inferior cambiará a amarillo y rojo cuando te acerques o superes el límite que te has propuesto gastar.</p>
+          </div>
+        </div>
+
+        <div class="flex items-start gap-3 p-3 rounded-xl bg-surface-container-lowest border border-surface-container-high">
+          <div class="w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-bold text-label-md shrink-0">4</div>
+          <div>
+            <div class="font-headline-sm text-[15px] font-bold text-on-surface">Guarda tu compra</div>
+            <p class="font-body-sm text-on-surface-variant mt-0.5">Al terminar en caja, pulsa 'Guardar compra' para enviar los artículos al servidor de Render y vaciar el carro.</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL 4: Mi Presupuesto -->
+    <div id="panel-profile" data-drawer-panel class="absolute inset-x-0 bottom-0 max-h-[85vh] rounded-t-2xl bg-surface p-space-md shadow-2xl flex flex-col gap-3 transition-transform duration-300 overflow-y-auto translate-y-full">
+      <div class="flex items-center justify-between border-b border-surface-container-high pb-2">
+        <div class="flex items-center gap-2">
+          <span class="material-symbols-outlined text-primary text-[22px]">savings</span>
+          <span class="font-headline-sm text-headline-sm text-on-surface font-bold">Mi Presupuesto</span>
+        </div>
+        <button id="close-profile-modal" type="button" class="btn-tactile w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-container text-on-surface-variant">
+          <span class="material-symbols-outlined text-[20px]">close</span>
+        </button>
+      </div>
+
+      <div class="p-3.5 rounded-xl bg-surface-container-low border border-surface-container-high flex flex-col gap-2.5">
+        <div class="flex items-center justify-between">
+          <div class="flex items-center gap-1.5">
+            <span class="material-symbols-outlined text-primary text-[20px]">savings</span>
+            <span class="font-headline-sm text-[15px] font-bold text-on-surface">Límite de gasto</span>
+          </div>
+          <div class="flex items-center gap-1 bg-surface-container-lowest px-2.5 py-1 rounded-lg border border-surface-container-high focus-within:border-primary focus-within:ring-1 focus-within:ring-primary shadow-sm">
+            <input id="budget-numeric-input" type="number" min="10" max="300" step="5" value="90" inputmode="decimal" class="text-right font-headline-sm text-[15px] font-bold text-primary bg-transparent outline-none border-0 p-0 focus:ring-0 w-16"/>
+            <span class="font-headline-sm text-[15px] font-bold text-primary select-none">€</span>
+          </div>
+        </div>
+        <p class="font-body-sm text-on-surface-variant text-[12px]">Te avisamos de forma visual con colores cuando tu compra se aproxime al tope fijado.</p>
+        
+        <div class="flex flex-col gap-1.5 bg-surface-container-lowest p-2.5 rounded-xl border border-surface-container-high">
+          <div class="flex items-center justify-between text-body-sm text-on-surface-variant">
+            <span class="text-[11px] font-medium">10 €</span>
+            <span id="slider-val-hint" class="text-[11px] font-semibold text-primary">Límite: 90 €</span>
+            <span class="text-[11px] font-medium">300 €</span>
+          </div>
+          <input id="budget-range-slider" type="range" min="10" max="300" step="5" value="90" class="w-full accent-[#00652c] cursor-pointer h-2 bg-surface-container-high rounded-lg appearance-none"/>
+        </div>
+      </div>
+    </div>
+
+    <!-- MODAL 5: ALTA DE NUEVO PRODUCTO (CUANDO EL CÓDIGO DA 404) -->
+    <div id="panel-add-product" data-drawer-panel class="absolute inset-x-0 bottom-0 max-h-[85vh] rounded-t-2xl bg-surface p-space-md shadow-2xl flex flex-col gap-3.5 transition-transform duration-300 translate-y-full border-t border-primary/20">
+      
+      <div class="flex items-center justify-between border-b border-surface-container-high pb-2">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center">
+            <span class="material-symbols-outlined text-[18px]">add_circle</span>
+          </div>
+          <div>
+            <span class="font-headline-sm text-headline-sm text-on-surface font-bold">Producto No Encontrado</span>
+            <p class="text-[11px] text-on-surface-variant leading-none mt-0.5">Regístralo para añadirlo a tu base de datos</p>
+          </div>
+        </div>
+        <button id="close-add-product-modal" type="button" class="btn-tactile w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-container text-on-surface-variant">
+          <span class="material-symbols-outlined text-[20px]">close</span>
+        </button>
+      </div>
+
+      <form id="form-add-product" class="flex flex-col gap-3">
+        <!-- Código de barras (solo lectura o autocompletado) -->
+        <div class="flex flex-col gap-1">
+          <label for="new-product-barcode" class="font-label-sm text-label-sm text-on-surface-variant font-medium">Código de barras (EAN-13)</label>
+          <div class="relative">
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-outline">barcode</span>
+            <input id="new-product-barcode" type="text" readonly class="w-full pl-9 pr-3 py-2 rounded-xl bg-surface-container-low border border-surface-container-high text-on-surface font-mono font-bold text-body-md focus:outline-none cursor-not-allowed"/>
+          </div>
+        </div>
+
+        <!-- Nombre del Producto -->
+        <div class="flex flex-col gap-1">
+          <label for="new-product-name" class="font-label-sm text-label-sm text-on-surface-variant font-medium">Nombre del producto *</label>
+          <div class="relative">
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-outline">local_offer</span>
+            <input id="new-product-name" type="text" required placeholder="Ej: Jamoncitos de pollo 🍗" class="w-full pl-9 pr-3 py-2 rounded-xl bg-surface-container-lowest border border-surface-container-high text-on-surface font-body-md text-body-md focus:outline-none focus:ring-2 focus:ring-primary/40"/>
+          </div>
+        </div>
+
+        <!-- Precio en Euros -->
+        <div class="flex flex-col gap-1">
+          <label for="new-product-price" class="font-label-sm text-label-sm text-on-surface-variant font-medium">Precio unitario (€) *</label>
+          <div class="relative">
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-outline">euro</span>
+            <input id="new-product-price" type="number" step="0.01" min="0.05" required placeholder="Ej: 2.45" class="w-full pl-9 pr-3 py-2 rounded-xl bg-surface-container-lowest border border-surface-container-high text-on-surface font-body-md text-body-md focus:outline-none focus:ring-2 focus:ring-primary/40"/>
+          </div>
+        </div>
+
+        <!-- Botones de Acción -->
+        <div class="flex items-center gap-2 pt-2">
+          <button id="cancel-add-product-btn" type="button" class="btn-tactile flex-1 py-2.5 rounded-xl bg-surface-container-high text-on-surface font-label-md font-semibold text-center hover:bg-surface-container-highest transition-colors">
+            Cancelar
+          </button>
+          <button id="submit-add-product-btn" type="submit" class="btn-tactile flex-1 py-2.5 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-label-md font-semibold text-center flex items-center justify-center gap-1.5 shadow-sm transition-colors">
+            <span class="material-symbols-outlined text-[18px]">save</span>
+            <span>Guardar y Añadir</span>
+          </button>
+        </div>
+      </form>
+
+    </div>
+
+  </div>
+
+  <!-- Script principal del proyecto cargado como módulo ES6 -->
+  <script type="module" src="./src/main.js"></script>
+</body>
+</html>

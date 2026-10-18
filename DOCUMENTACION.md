@@ -244,6 +244,37 @@ El backend expone los siguientes endpoints que consume este frontend:
 | **PUT** | `/api/v1/products/{barcode}` | Modifica un producto existente | `{"barcode": "...", "name": "...", "price": 1.70}` |
 | **GET** | `/api/v1/products` | Lista catálogo completo | *Ninguno* |
 | **POST** | `/api/v1/purchases` | Registra una compra finalizada | `{"items": [{"productId": 3, "quantity": 2}]}` |
+| **GET** *(Propuesto)* | `/api/v1/products/search?q={texto}` | Sugerencias en tiempo real mientras el usuario escribe | *Ninguno* |
+
+### 💡 Diseño Didáctico: Endpoint de Sugerencias en Spring Boot
+Para implementar el desplegable de autocompletado cuando el usuario escribe letras en el buscador:
+
+1. **En `ProductRepository.java` (Spring Data JPA):**
+   ```java
+   // Busca hasta 6 productos cuyo nombre contenga el texto ignorando mayúsculas/minúsculas
+   List<Product> findTop6ByNameContainingIgnoreCase(String name);
+   ```
+
+2. **En `ProductService.java`:**
+   ```java
+   public List<ProductDTO> searchSuggestions(String query) {
+       if (query == null || query.trim().length() < 2) {
+           return Collections.emptyList();
+       }
+       return productRepository.findTop6ByNameContainingIgnoreCase(query.trim())
+               .stream()
+               .map(this::mapToDTO)
+               .toList();
+   }
+   ```
+
+3. **En `ProductController.java`:**
+   ```java
+   @GetMapping("/search")
+   public ResponseEntity<List<ProductDTO>> getSuggestions(@RequestParam("q") String query) {
+       return ResponseEntity.ok(productService.searchSuggestions(query));
+   }
+   ```
 
 > [!NOTE]
 > **CORS (Cross-Origin Resource Sharing):** Tu backend de Spring Boot ya incluye la cabecera `Access-Control-Allow-Origin: *`, por lo que el frontend puede ser alojado en cualquier dominio (incluyendo GitHub Pages) sin sufrir bloqueos de seguridad del navegador.

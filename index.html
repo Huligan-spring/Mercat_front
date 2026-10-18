@@ -80,7 +80,7 @@
 
       <!-- VISOR DE CÁMARA Y RETÍCULA DE ESCANEO -->
       <div class="px-gutter mb-space-md mt-3">
-        <div class="relative w-full aspect-[16/10] max-h-64 rounded-2xl overflow-hidden bg-inverse-surface shadow-md flex items-center justify-center select-none group border border-surface-container-high/40">
+        <div class="relative w-full aspect-[4/3] max-h-80 rounded-2xl overflow-hidden bg-inverse-surface shadow-md flex items-center justify-center select-none group border border-surface-container-high/40">
           
           <!-- Elemento donde html5-qrcode inyecta el stream de vídeo real -->
           <div id="interactive-scanner" class="absolute inset-0 w-full h-full overflow-hidden bg-black flex items-center justify-center"></div>
@@ -88,29 +88,13 @@
           <!-- Capa de brillo cuando la linterna está encendida -->
           <div id="torch-ambient" class="absolute inset-0 bg-amber-200/20 mix-blend-screen opacity-0 transition-opacity duration-300 pointer-events-none"></div>
 
-          <!-- Degradado de viñeta para destacar el centro -->
-          <div class="absolute inset-0 bg-gradient-to-b from-inverse-surface/60 via-transparent to-inverse-surface/70 pointer-events-none"></div>
-
-          <!-- Marco de enfoque (Reticle Box) -->
-          <div id="reticle-box" class="relative w-4/5 max-w-xs h-32 flex items-center justify-center pointer-events-none z-10">
+          <!-- Marco de enfoque (Reticle Box amplio sin láser ni texto) -->
+          <div id="reticle-box" class="relative w-[88%] max-w-sm h-48 flex items-center justify-center pointer-events-none z-10">
             <!-- Esquinas con efecto de respiración -->
-            <div class="corner-anim absolute top-0 left-0 w-6 h-6 border-t-[3.5px] border-l-[3.5px] border-primary-fixed rounded-tl-lg"></div>
-            <div class="corner-anim absolute top-0 right-0 w-6 h-6 border-t-[3.5px] border-r-[3.5px] border-primary-fixed rounded-tr-lg" style="animation-delay: 0.15s;"></div>
-            <div class="corner-anim absolute bottom-0 left-0 w-6 h-6 border-b-[3.5px] border-l-[3.5px] border-primary-fixed rounded-bl-lg" style="animation-delay: 0.3s;"></div>
-            <div class="corner-anim absolute bottom-0 right-0 w-6 h-6 border-b-[3.5px] border-r-[3.5px] border-primary-fixed rounded-br-lg" style="animation-delay: 0.45s;"></div>
-
-            <!-- Láser animado de escaneo -->
-            <div id="scanner-laser-beam" class="scanner-laser absolute left-2 right-2 flex flex-col items-center pointer-events-none z-10">
-              <div class="w-full h-7 bg-gradient-to-t from-primary-fixed/20 to-transparent"></div>
-              <div class="w-full h-[2.5px] bg-gradient-to-r from-transparent via-primary-fixed to-transparent shadow-[0_0_14px_#79db8d]"></div>
-              <div class="w-full h-1 bg-gradient-to-b from-primary-fixed/25 to-transparent"></div>
-            </div>
-
-            <!-- Indicador textual central -->
-            <div id="reticle-label-wrap" class="flex flex-col items-center justify-center gap-1 opacity-70 pointer-events-none select-none">
-              <span class="material-symbols-outlined text-inverse-on-surface text-[28px] opacity-80">barcode</span>
-              <span class="font-label-sm text-label-sm text-inverse-on-surface tracking-wider uppercase font-semibold">Apunta al código</span>
-            </div>
+            <div class="corner-anim absolute top-0 left-0 w-8 h-8 border-t-[3.5px] border-l-[3.5px] border-primary-fixed rounded-tl-xl"></div>
+            <div class="corner-anim absolute top-0 right-0 w-8 h-8 border-t-[3.5px] border-r-[3.5px] border-primary-fixed rounded-tr-xl" style="animation-delay: 0.15s;"></div>
+            <div class="corner-anim absolute bottom-0 left-0 w-8 h-8 border-b-[3.5px] border-l-[3.5px] border-primary-fixed rounded-bl-xl" style="animation-delay: 0.3s;"></div>
+            <div class="corner-anim absolute bottom-0 right-0 w-8 h-8 border-b-[3.5px] border-r-[3.5px] border-primary-fixed rounded-br-xl" style="animation-delay: 0.45s;"></div>
           </div>
 
           <!-- Overlay cuando la cámara está pausada manualmente -->
@@ -128,13 +112,13 @@
           
           <button id="btn-toggle-camera" type="button" class="btn-tactile flex-1 py-2 px-3 rounded-xl bg-surface-container-lowest border border-surface-container-high/60 shadow-sm flex items-center justify-center gap-2 text-on-surface hover:bg-surface-container transition-all">
             <span id="camera-status-icon" class="material-symbols-outlined text-[18px] text-primary">videocam</span>
-            <span id="camera-status-text" class="font-label-md text-label-md font-semibold text-on-surface">Cámara: On</span>
+            <span id="camera-status-text" class="font-label-md text-label-md font-semibold text-on-surface">On</span>
             <span id="camera-status-dot" class="w-2 h-2 rounded-full bg-primary animate-pulse"></span>
           </button>
 
           <button id="btn-toggle-torch-bar" type="button" class="btn-tactile flex-1 py-2 px-3 rounded-xl bg-surface-container-lowest border border-surface-container-high/60 shadow-sm flex items-center justify-center gap-2 text-on-surface hover:bg-surface-container transition-all">
             <span id="torch-bar-icon" class="material-symbols-outlined text-[18px] text-on-surface-variant">flashlight_off</span>
-            <span id="torch-bar-text" class="font-label-md text-label-md font-semibold text-on-surface">Linterna: Off</span>
+            <span id="torch-bar-text" class="font-label-md text-label-md font-semibold text-on-surface">Off</span>
             <span id="torch-bar-dot" class="w-2 h-2 rounded-full bg-outline-variant"></span>
           </button>
 
@@ -151,9 +135,8 @@
               <span class="material-symbols-outlined text-[16px] block">close</span>
             </button>
           </div>
-          <button id="search-product-btn" type="submit" aria-label="Buscar producto" class="btn-tactile h-10 px-4 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-label-md text-label-md font-semibold flex items-center justify-center gap-1.5 shrink-0 shadow-sm transition-all">
-            <span class="material-symbols-outlined text-[18px]">add_shopping_cart</span>
-            <span>Añadir</span>
+          <button id="search-product-btn" type="submit" aria-label="Añadir producto" class="btn-tactile h-10 w-11 px-0 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-label-md text-label-md font-semibold flex items-center justify-center shrink-0 shadow-sm transition-all">
+            <span class="material-symbols-outlined text-[20px]">add_shopping_cart</span>
           </button>
         </form>
       </div>

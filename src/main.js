@@ -14,7 +14,7 @@
 
 import './css/style.css';
 import { pingBackend, getProductByBarcode, createProduct, savePurchase } from './js/api.js';
-import { startScanner, pauseScanner, resumeScanner, toggleTorch, isScannerRunning } from './js/scanner.js';
+import { startScanner, pauseScanner, resumeScanner, toggleTorch, isScannerRunning, isCameraPaused } from './js/scanner.js';
 import { loadCart, getCartItems, addProductToCart, incrementQuantity, decrementQuantity, removeProduct, clearCart, calculateTotal, formatEur } from './js/cart.js';
 import { getStoredBudget, saveBudget, evaluateBudget } from './js/budget.js';
 import { initModals, openModal, closeAllModals, showToast } from './js/modals.js';
@@ -325,8 +325,17 @@ searchFormEl?.addEventListener('submit', async (e) => {
   }
 });
 
-searchInputEl?.addEventListener('input', () => {
-  clearSearchBtnEl.classList.toggle('hidden', searchInputEl.value.length === 0);
+searchInputEl?.addEventListener('input', async () => {
+  const val = searchInputEl.value.trim();
+  clearSearchBtnEl.classList.toggle('hidden', val.length === 0);
+
+  // Si detecta exactamente 13 números continuos (código EAN-13), lo procesa automáticamente
+  if (/^\d{13}$/.test(val)) {
+    const barcodeToProcess = val;
+    searchInputEl.value = '';
+    clearSearchBtnEl.classList.add('hidden');
+    await handleBarcodeDetected(barcodeToProcess);
+  }
 });
 
 clearSearchBtnEl?.addEventListener('click', () => {
@@ -531,27 +540,27 @@ shoppingItemsContainer?.addEventListener('click', (e) => {
 // 11. CONTROLES DE LA CÁMARA Y LINTERNA
 // =========================================================================
 btnToggleCamera?.addEventListener('click', () => {
-  const running = isScannerRunning();
-  if (running) {
+  const isPaused = isCameraPaused();
+  if (!isPaused) {
     pauseScanner();
     camIconEl.textContent = 'videocam_off';
     camIconEl.className = 'material-symbols-outlined text-[18px] text-on-surface-variant';
-    camTextEl.textContent = 'Cámara: Pausada';
+    camTextEl.textContent = 'Off';
     camDotEl.className = 'w-2 h-2 rounded-full bg-outline-variant';
     camOverlayEl.classList.remove('opacity-0', 'pointer-events-none');
     camOverlayEl.classList.add('opacity-100', 'pointer-events-auto');
-    laserBeamEl.style.display = 'none';
-    showToast('Cámara pausada', 'videocam_off');
+    if (laserBeamEl) laserBeamEl.style.display = 'none';
+    showToast('Cámara desactivada (Off)', 'videocam_off');
   } else {
     resumeScanner();
     camIconEl.textContent = 'videocam';
     camIconEl.className = 'material-symbols-outlined text-[18px] text-primary';
-    camTextEl.textContent = 'Cámara: On';
+    camTextEl.textContent = 'On';
     camDotEl.className = 'w-2 h-2 rounded-full bg-primary animate-pulse';
     camOverlayEl.classList.add('opacity-0', 'pointer-events-none');
     camOverlayEl.classList.remove('opacity-100', 'pointer-events-auto');
-    laserBeamEl.style.display = 'flex';
-    showToast('Cámara reanudada', 'videocam');
+    if (laserBeamEl) laserBeamEl.style.display = 'flex';
+    showToast('Cámara activada (On)', 'videocam');
   }
 });
 
@@ -560,17 +569,17 @@ btnToggleTorch?.addEventListener('click', async () => {
   if (newState) {
     torchIconEl.textContent = 'flashlight_on';
     torchIconEl.className = 'material-symbols-outlined text-[18px] text-amber-500';
-    torchTextEl.textContent = 'Linterna: On';
+    torchTextEl.textContent = 'On';
     torchDotEl.className = 'w-2 h-2 rounded-full bg-amber-400';
     torchAmbientEl.style.opacity = '1';
-    showToast('Linterna encendida', 'flashlight_on');
+    showToast('Linterna encendida (On)', 'flashlight_on');
   } else {
     torchIconEl.textContent = 'flashlight_off';
     torchIconEl.className = 'material-symbols-outlined text-[18px] text-on-surface-variant';
-    torchTextEl.textContent = 'Linterna: Off';
+    torchTextEl.textContent = 'Off';
     torchDotEl.className = 'w-2 h-2 rounded-full bg-outline-variant';
     torchAmbientEl.style.opacity = '0';
-    showToast('Linterna apagada', 'flashlight_off');
+    showToast('Linterna apagada (Off)', 'flashlight_off');
   }
 });
 

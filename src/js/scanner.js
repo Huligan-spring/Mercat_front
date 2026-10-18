@@ -18,6 +18,7 @@ let html5QrCode = null;
 // Estados del escáner
 let isScanning = false;
 let isTorchOn = false;
+let isPaused = false;
 let lastScannedCode = null;
 let lastScannedTimestamp = 0;
 
@@ -85,16 +86,15 @@ export async function startScanner(elementId, onCodeDetected, onError) {
     // Configuración de la cámara: preferir la cámara trasera ("environment")
     const cameraConfig = { facingMode: 'environment' };
 
-    // Configuración del área de análisis
+    // Configuración del área de análisis: aprovecha más del 90% del marco visible
     const scanConfig = {
-      fps: 15, // 15 fotogramas por segundo es óptimo para rendimiento de batería
+      fps: 15,
       qrbox: (viewfinderWidth, viewfinderHeight) => {
-        // Área rectangular alargada optimizada para códigos de barras EAN-13
-        const width = Math.min(viewfinderWidth * 0.85, 320);
-        const height = Math.min(viewfinderHeight * 0.55, 160);
+        const width = Math.min(viewfinderWidth * 0.95, 420);
+        const height = Math.min(viewfinderHeight * 0.85, 280);
         return { width: Math.floor(width), height: Math.floor(height) };
       },
-      aspectRatio: 16 / 10
+      aspectRatio: 4 / 3
     };
 
     // Callback interno cuando la librería detecta texto decodificado
@@ -129,10 +129,12 @@ export async function startScanner(elementId, onCodeDetected, onError) {
     );
 
     isScanning = true;
+    isPaused = false;
     return true;
   } catch (err) {
     console.warn('[Scanner] No se pudo iniciar el escáner real de la cámara:', err.message);
     isScanning = false;
+    isPaused = false;
     if (typeof onError === 'function') {
       onError(err);
     }
@@ -141,22 +143,42 @@ export async function startScanner(elementId, onCodeDetected, onError) {
 }
 
 /**
- * Pausa o reanuda la lectura sin desconectar la cámara.
+ * Pausa la lectura y el vídeo.
  */
 export function pauseScanner() {
   if (html5QrCode && isScanning) {
     try {
       html5QrCode.pause(true);
-    } catch (e) {}
+    } catch (e) {
+      console.warn('[Scanner] Error al pausar cámara:', e);
+    }
+    isPaused = true;
   }
 }
 
+/**
+ * Reanuda la lectura y reproduce el vídeo.
+ */
 export function resumeScanner() {
   if (html5QrCode && isScanning) {
     try {
       html5QrCode.resume();
-    } catch (e) {}
+      const videoEl = document.querySelector('#interactive-scanner video');
+      if (videoEl && videoEl.paused) {
+        videoEl.play().catch(() => {});
+      }
+    } catch (e) {
+      console.warn('[Scanner] Error al reanudar cámara:', e);
+    }
+    isPaused = false;
   }
+}
+
+/**
+ * Informa si la cámara está pausada actualmente.
+ */
+export function isCameraPaused() {
+  return isPaused;
 }
 
 /**

@@ -91,6 +91,16 @@ const closeAddProductBtn = document.getElementById('close-add-product-modal');
 
 // Banner de arranque en Render
 const backendBannerEl = document.getElementById('backend-status-banner');
+const backendStatusTextEl = document.getElementById('backend-status-text');
+const backendStatusDotEl = document.getElementById('backend-status-dot');
+const closeBackendBannerBtn = document.getElementById('close-backend-banner');
+
+function hideBackendBanner() {
+  if (backendBannerEl && !backendBannerEl.classList.contains('hidden')) {
+    backendBannerEl.classList.add('hidden');
+  }
+}
+closeBackendBannerBtn?.addEventListener('click', hideBackendBanner);
 
 // =========================================================================
 // 3. RENDERIZADO VISUAL DEL CARRITO Y TOTALES
@@ -193,6 +203,7 @@ async function handleBarcodeDetected(barcode, detectedPrice = null) {
   try {
     // 1. Consultamos la API en Spring Boot
     const product = await getProductByBarcode(barcode);
+    hideBackendBanner();
 
     if (product) {
       // Caso de éxito: El producto ya está en Supabase
@@ -689,12 +700,48 @@ async function initApp() {
   // 4. Registrar Service Worker
   registerServiceWorker();
 
-  // 5. Ping en segundo plano a Render
-  backendBannerEl?.classList.remove('hidden');
-  pingBackend().then((ready) => {
-    backendBannerEl?.classList.add('hidden');
+  // 5. Ping en segundo plano a Render con control inteligente de aviso
+  let isConnected = false;
+
+  // Solo mostramos el aviso si tras 1.5s el servidor aún no ha respondido.
+  // Si la instancia de Render ya estaba despierta, responderá en ~300ms y el banner NUNCA aparecerá.
+  const bannerDelayTimer = setTimeout(() => {
+    if (!isConnected && backendBannerEl) {
+      backendBannerEl.classList.remove('hidden');
+    }
+  }, 1500);
+
+  const checkServerConnection = async () => {
+    const ready = await pingBackend(5000);
     if (ready) {
-      console.log('[Mercat] Conexión con Render establecida correctamente.');
+      isConnected = true;
+      clearTimeout(bannerDelayTimer);
+      if (backendBannerEl && !backendBannerEl.classList.contains('hidden')) {
+        if (backendStatusDotEl) {
+          backendStatusDotEl.className = 'w-2 h-2 rounded-full bg-primary shrink-0';
+        }
+        if (backendStatusTextEl) {
+          backendStatusTextEl.textContent = 'Servidor conectado';
+        }
+        setTimeout(hideBackendBanner, 1200);
+      }
+      return true;
+    }
+    return false;
+  };
+
+  // Comprobación inicial y reintentos automáticos si el backend está frío
+  checkServerConnection().then((ready) => {
+    if (!ready) {
+      let attempts = 0;
+      const retryInterval = setInterval(async () => {
+        attempts++;
+        const ok = await checkServerConnection();
+        if (ok || attempts >= 6) {
+          clearInterval(retryInterval);
+          if (!ok) hideBackendBanner();
+        }
+      }, 4000);
     }
   });
 

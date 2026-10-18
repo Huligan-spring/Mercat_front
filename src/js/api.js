@@ -12,24 +12,31 @@
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://mercat-backend-6mxo.onrender.com/api/v1';
 
 /**
- * Función didáctica: 'pingBackend'
  * Despierta la instancia de Render en segundo plano al abrir la aplicación.
  * El plan gratuito de Render pone en reposo el servidor tras 15 minutos sin uso.
  * Con esta llamada silenciosa conseguimos que esté listo antes de que el usuario escanee.
+ * 
+ * @param {number} timeoutMs Tiempo máximo de espera antes de abortar el intento
+ * @returns {Promise<boolean>} Devuelve true si el backend respondió con éxito (código 200)
  */
-export async function pingBackend() {
+export async function pingBackend(timeoutMs = 6000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+
   try {
-    console.log('[API] Despertando backend en Render...');
     const response = await fetch(`${API_BASE_URL}/products`, {
       method: 'GET',
-      headers: { 'Accept': 'application/json' }
+      headers: { 'Accept': 'application/json' },
+      signal: controller.signal
     });
+    clearTimeout(timeoutId);
     if (response.ok) {
-      console.log('[API] Backend despierto y listo para recibir peticiones.');
       return true;
     }
   } catch (error) {
-    console.warn('[API] Nota: El backend está iniciando o no hay conexión de red:', error.message);
+    // Si la llamada fue abortada por timeout o falló por estar en frío, no emitimos error crítico
+  } finally {
+    clearTimeout(timeoutId);
   }
   return false;
 }

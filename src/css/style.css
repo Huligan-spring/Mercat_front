@@ -54,21 +54,7 @@
   }
 }
 
-/* 2. Respiración suave de las esquinas del visor de la cámara */
-@keyframes cornerBreathe {
-  0%, 100% {
-    opacity: 0.8;
-    transform: scale(1);
-    filter: drop-shadow(0 0 3px rgba(121, 219, 141, 0.5));
-  }
-  50% {
-    opacity: 1;
-    transform: scale(1.03);
-    filter: drop-shadow(0 0 8px rgba(121, 219, 141, 0.9));
-  }
-}
-
-/* 3. Entrada escalonada de tarjetas añadidas a la cesta */
+/* 2. Entrada escalonada de tarjetas añadidas a la cesta */
 @keyframes cardStagger {
   from {
     opacity: 0;
@@ -80,7 +66,7 @@
   }
 }
 
-/* 4. Efecto de brillo (shimmer) en el botón principal de guardar */
+/* 3. Efecto de brillo (shimmer) en el botón principal de guardar */
 @keyframes shimmerGlow {
   0% {
     transform: translateX(-150%) skewX(-15deg);
@@ -90,7 +76,7 @@
   }
 }
 
-/* 5. Pulso visual cuando el total de la compra cambia */
+/* 4. Pulso visual cuando el total de la compra cambia */
 @keyframes pricePulse {
   0% {
     transform: scale(1);
@@ -108,10 +94,6 @@
 /* Clases de utilidad vinculadas a las animaciones */
 .scanner-laser {
   animation: scanSweep 2.8s cubic-bezier(0.45, 0, 0.55, 1) infinite;
-}
-
-.corner-anim {
-  animation: cornerBreathe 3s ease-in-out infinite;
 }
 
 .stagger-item {
@@ -158,7 +140,7 @@
 
 /* Accesibilidad: si el usuario tiene activada la reducción de movimiento en su sistema */
 @media (prefers-reduced-motion: reduce) {
-  .scanner-laser, .corner-anim, .btn-shimmer::after, .price-bump, .stagger-item {
+  .scanner-laser, .btn-shimmer::after, .price-bump, .stagger-item {
     animation: none !important;
   }
 }

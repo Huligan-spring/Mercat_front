@@ -73,9 +73,14 @@
     <div class="flex flex-col w-full">
 
       <!-- AVISO DE CONEXIÓN CON EL SERVIDOR -->
-      <div id="backend-status-banner" class="hidden px-gutter py-1.5 bg-amber-100 border-b border-amber-200 text-amber-800 text-[12px] flex items-center justify-center gap-1.5">
-        <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
-        <span>Conectando con el servidor (puede tardar unos segundos)...</span>
+      <div id="backend-status-banner" class="hidden px-gutter py-1.5 bg-amber-50 border-b border-amber-200/80 text-amber-900 text-[12px] flex items-center justify-between gap-2 transition-all duration-300">
+        <div class="flex items-center gap-2 flex-1 min-w-0">
+          <span id="backend-status-dot" class="w-2 h-2 rounded-full bg-amber-500 shrink-0 animate-ping"></span>
+          <span id="backend-status-text" class="font-medium truncate">Conectando con el servidor (puede tardar unos segundos)...</span>
+        </div>
+        <button id="close-backend-banner" type="button" aria-label="Cerrar aviso" class="text-amber-700 hover:text-amber-950 p-0.5 rounded-full flex items-center justify-center shrink-0">
+          <span class="material-symbols-outlined text-[16px] block">close</span>
+        </button>
       </div>
 
       <!-- VISOR DE CÁMARA Y RETÍCULA DE ESCANEO -->
@@ -87,17 +92,6 @@
 
           <!-- Capa de brillo cuando la linterna está encendida -->
           <div id="torch-ambient" class="absolute inset-0 bg-amber-200/20 mix-blend-screen opacity-0 transition-opacity duration-300 pointer-events-none"></div>
-
-          <!-- Marco de enfoque (Reticle Box amplio centrado sobre el vídeo) -->
-          <div id="reticle-box" class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
-            <div class="relative w-[88%] h-[82%]">
-              <!-- Esquinas con efecto de respiración -->
-              <div class="corner-anim absolute top-0 left-0 w-8 h-8 border-t-[3.5px] border-l-[3.5px] border-primary-fixed rounded-tl-xl"></div>
-              <div class="corner-anim absolute top-0 right-0 w-8 h-8 border-t-[3.5px] border-r-[3.5px] border-primary-fixed rounded-tr-xl" style="animation-delay: 0.15s;"></div>
-              <div class="corner-anim absolute bottom-0 left-0 w-8 h-8 border-b-[3.5px] border-l-[3.5px] border-primary-fixed rounded-bl-xl" style="animation-delay: 0.3s;"></div>
-              <div class="corner-anim absolute bottom-0 right-0 w-8 h-8 border-b-[3.5px] border-r-[3.5px] border-primary-fixed rounded-br-xl" style="animation-delay: 0.45s;"></div>
-            </div>
-          </div>
 
           <!-- Overlay cuando la cámara está pausada manualmente -->
           <div id="camera-paused-overlay" class="absolute inset-0 bg-inverse-surface/90 flex flex-col items-center justify-center gap-2 opacity-0 pointer-events-none transition-opacity duration-300 z-20">

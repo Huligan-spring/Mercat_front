@@ -217,8 +217,8 @@ sequenceDiagram
 El proyecto se estructura en módulos especializados para mantener una arquitectura limpia y desacoplada:
 
 1. **`src/js/api.js`:**
-   - Contiene las funciones `fetch` que hablan con Render.
-   - Incluye la función `pingBackend()`, que realiza una llamada silenciosa al abrir la app para "despertar" el servidor de Render antes de que el usuario escanee su primer producto.
+   - Contiene las funciones `fetch` que se comunican con el backend.
+   - Incluye la función `pingBackend(timeoutMs)`, que envía una petición ligera con límite de tiempo (`AbortController`) para verificar y despertar la instancia en segundo plano. Si el servidor responde rápidamente, la app evita mostrar avisos innecesarios al usuario.
 2. **`src/js/scanner.js`:**
    - Controla la cámara y la decodificación en tiempo real mediante `html5-qrcode`.
    - Activa aceleración nativa por hardware (`BarcodeDetector` en C++/GPU en navegadores compatibles) y muestreo a 20 FPS con marco de lectura enfocado (`qrbox`), optimizando el rendimiento en procesadores móviles.

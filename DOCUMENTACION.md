@@ -1,6 +1,6 @@
-# 🛒 Mercat Asistent - Guía Didáctica y Documentación Técnica
+# 🛒 Mercat Asistent - Documentación Técnica del Proyecto
 
-Bienvenido al manual y documentación técnica de **Mercat Asistent**. Este documento ha sido redactado con un enfoque **didáctico y formativo**, pensado para ser explicado a compañeros de equipo o estudiantes que estén aprendiendo cómo se construye una aplicación web real, moderna y desacoplada de principio a fin.
+Documentación técnica y funcional de **Mercat Asistent**, una Progressive Web App (PWA) diseñada para el escaneo de productos mediante código de barras en tiempo real, cálculo de totales y control de presupuesto para compras de supermercado.
 
 ---
 
@@ -212,9 +212,9 @@ sequenceDiagram
 
 ---
 
-## 6. Módulos JavaScript Explicados
+## 6. Módulos JavaScript de la Aplicación
 
-Para garantizar que el código sea fácil de mantener y de explicar a terceros, se ha separado en módulos con una única responsabilidad cada uno:
+El proyecto se estructura en módulos especializados para mantener una arquitectura limpia y desacoplada:
 
 1. **`src/js/api.js`:**
    - Contiene las funciones `fetch` que hablan con Render.

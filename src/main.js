@@ -121,9 +121,6 @@ function renderCart() {
           <span class="product-title font-headline-sm text-headline-sm text-on-surface font-bold truncate leading-tight">
             ${item.name}
           </span>
-          <span class="text-[11px] font-mono text-outline px-1.5 py-0.5 rounded bg-surface-container-low shrink-0 ml-2">
-            ${item.barcode ? item.barcode.slice(-4) : ''}
-          </span>
         </div>
 
         <!-- Fila inferior: Precio unitario, selector de cantidad y subtotal -->
@@ -200,7 +197,7 @@ async function handleBarcodeDetected(barcode) {
       // Caso de éxito: El producto ya está en Supabase
       addProductToCart(product);
       renderCart();
-      showToast(`¡Añadido! ${product.name} (${formatEur(product.price)})`, 'check_circle');
+      showToast(`Añadido: ${product.name} (${formatEur(product.price)})`, 'check_circle');
     } else {
       // Caso 404: El producto no existe aún en la base de datos
       // Pausamos la cámara para que no siga escaneando de fondo

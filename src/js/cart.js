@@ -23,7 +23,7 @@ let cart = [];
  */
 export function formatEur(amount) {
   const safeNumber = typeof amount === 'number' && !isNaN(amount) ? amount : 0;
-  return safeNumber.toFixed(2).replace('.', ',') + ' €';
+  return safeNumber.toFixed(2).replace('.', ',') + '\u00A0€';
 }
 
 /**

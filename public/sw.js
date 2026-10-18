@@ -11,7 +11,7 @@
  * 3. Para la API externa (Render): NETWORK ONLY (precios y datos en tiempo real).
  */
 
-const CACHE_NAME = 'mercat-asistent-v2';
+const CACHE_NAME = 'mercat-asistent-v3';
 
 const STATIC_ASSETS = [
   './',

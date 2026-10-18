@@ -21,8 +21,11 @@ const DEFAULT_BUDGET = 90; // Valor por defecto amigable
 export function getStoredBudget() {
   try {
     const val = localStorage.getItem(BUDGET_STORAGE_KEY);
-    if (val && !isNaN(parseFloat(val))) {
-      return parseFloat(val);
+    if (val !== null && val !== undefined && val !== '') {
+      const parsed = parseFloat(val);
+      if (!isNaN(parsed) && parsed >= 1 && parsed <= 200) {
+        return parsed;
+      }
     }
   } catch (e) {}
   return DEFAULT_BUDGET;
@@ -31,12 +34,13 @@ export function getStoredBudget() {
 /**
  * Guarda un nuevo límite de presupuesto fijado por el usuario.
  * 
- * @param {number} newBudget Importe en euros (entre 10 y 500)
+ * @param {number} newBudget Importe en euros (entre 1 y 200)
  */
 export function saveBudget(newBudget) {
   let val = parseFloat(newBudget);
   if (isNaN(val) || val <= 0) val = DEFAULT_BUDGET;
-  val = Math.max(10, Math.min(500, val)); // Límite razonable de compra
+  val = Math.max(1, Math.min(200, val)); // Límite de 1 € a 200 €
+  val = Math.round(val * 100) / 100; // Conservar hasta 2 decimales (céntimos)
 
   try {
     localStorage.setItem(BUDGET_STORAGE_KEY, val.toString());

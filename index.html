@@ -72,29 +72,31 @@
   <main class="flex-1 flex flex-col relative w-full pt-16 bg-surface" style="padding-bottom: 170px;">
     <div class="flex flex-col w-full">
 
-      <!-- AVISO DE CONEXIÓN CON RENDER / COLD START -->
+      <!-- AVISO DE CONEXIÓN CON EL SERVIDOR -->
       <div id="backend-status-banner" class="hidden px-gutter py-1.5 bg-amber-100 border-b border-amber-200 text-amber-800 text-[12px] flex items-center justify-center gap-1.5">
         <span class="w-2 h-2 rounded-full bg-amber-500 animate-ping"></span>
-        <span>Conectando con la API en Render (puede tardar unos segundos)...</span>
+        <span>Conectando con el servidor (puede tardar unos segundos)...</span>
       </div>
 
       <!-- VISOR DE CÁMARA Y RETÍCULA DE ESCANEO -->
       <div class="px-gutter mb-space-md mt-3">
-        <div class="relative w-full aspect-[4/3] max-h-80 rounded-2xl overflow-hidden bg-inverse-surface shadow-md flex items-center justify-center select-none group border border-surface-container-high/40">
+        <div class="relative w-full aspect-[4/3] max-h-80 rounded-2xl overflow-hidden bg-black shadow-md select-none border border-surface-container-high/40">
           
-          <!-- Elemento donde html5-qrcode inyecta el stream de vídeo real -->
-          <div id="interactive-scanner" class="absolute inset-0 w-full h-full overflow-hidden bg-black flex items-center justify-center"></div>
+          <!-- Elemento donde html5-qrcode inyecta el stream de vídeo real a pantalla completa -->
+          <div id="interactive-scanner" class="absolute inset-0 w-full h-full overflow-hidden bg-black"></div>
 
           <!-- Capa de brillo cuando la linterna está encendida -->
           <div id="torch-ambient" class="absolute inset-0 bg-amber-200/20 mix-blend-screen opacity-0 transition-opacity duration-300 pointer-events-none"></div>
 
-          <!-- Marco de enfoque (Reticle Box amplio sin láser ni texto) -->
-          <div id="reticle-box" class="relative w-[88%] max-w-sm h-48 flex items-center justify-center pointer-events-none z-10">
-            <!-- Esquinas con efecto de respiración -->
-            <div class="corner-anim absolute top-0 left-0 w-8 h-8 border-t-[3.5px] border-l-[3.5px] border-primary-fixed rounded-tl-xl"></div>
-            <div class="corner-anim absolute top-0 right-0 w-8 h-8 border-t-[3.5px] border-r-[3.5px] border-primary-fixed rounded-tr-xl" style="animation-delay: 0.15s;"></div>
-            <div class="corner-anim absolute bottom-0 left-0 w-8 h-8 border-b-[3.5px] border-l-[3.5px] border-primary-fixed rounded-bl-xl" style="animation-delay: 0.3s;"></div>
-            <div class="corner-anim absolute bottom-0 right-0 w-8 h-8 border-b-[3.5px] border-r-[3.5px] border-primary-fixed rounded-br-xl" style="animation-delay: 0.45s;"></div>
+          <!-- Marco de enfoque (Reticle Box amplio centrado sobre el vídeo) -->
+          <div id="reticle-box" class="absolute inset-0 flex items-center justify-center pointer-events-none z-10">
+            <div class="relative w-[88%] h-[82%]">
+              <!-- Esquinas con efecto de respiración -->
+              <div class="corner-anim absolute top-0 left-0 w-8 h-8 border-t-[3.5px] border-l-[3.5px] border-primary-fixed rounded-tl-xl"></div>
+              <div class="corner-anim absolute top-0 right-0 w-8 h-8 border-t-[3.5px] border-r-[3.5px] border-primary-fixed rounded-tr-xl" style="animation-delay: 0.15s;"></div>
+              <div class="corner-anim absolute bottom-0 left-0 w-8 h-8 border-b-[3.5px] border-l-[3.5px] border-primary-fixed rounded-bl-xl" style="animation-delay: 0.3s;"></div>
+              <div class="corner-anim absolute bottom-0 right-0 w-8 h-8 border-b-[3.5px] border-r-[3.5px] border-primary-fixed rounded-br-xl" style="animation-delay: 0.45s;"></div>
+            </div>
           </div>
 
           <!-- Overlay cuando la cámara está pausada manualmente -->
@@ -290,7 +292,7 @@
           <div class="w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-bold text-label-md shrink-0">4</div>
           <div>
             <div class="font-headline-sm text-[15px] font-bold text-on-surface">Guarda tu compra</div>
-            <p class="font-body-sm text-on-surface-variant mt-0.5">Al terminar en caja, pulsa 'Guardar compra' para enviar los artículos al servidor de Render y vaciar el carro.</p>
+            <p class="font-body-sm text-on-surface-variant mt-0.5">Al terminar en caja, pulsa 'Guardar compra' para registrar tu compra y vaciar el carro.</p>
           </div>
         </div>
       </div>
@@ -315,7 +317,7 @@
             <span class="font-headline-sm text-[15px] font-bold text-on-surface">Límite de gasto</span>
           </div>
           <div class="flex items-center gap-1 bg-surface-container-lowest px-2.5 py-1 rounded-lg border border-surface-container-high focus-within:border-primary focus-within:ring-1 focus-within:ring-primary shadow-sm">
-            <input id="budget-numeric-input" type="number" min="10" max="300" step="5" value="90" inputmode="decimal" class="text-right font-headline-sm text-[15px] font-bold text-primary bg-transparent outline-none border-0 p-0 focus:ring-0 w-16"/>
+            <input id="budget-numeric-input" type="number" min="1" max="200" step="0.01" value="90" inputmode="decimal" class="text-right font-headline-sm text-[15px] font-bold text-primary bg-transparent outline-none border-0 p-0 focus:ring-0 w-24"/>
             <span class="font-headline-sm text-[15px] font-bold text-primary select-none">€</span>
           </div>
         </div>
@@ -323,11 +325,11 @@
         
         <div class="flex flex-col gap-1.5 bg-surface-container-lowest p-2.5 rounded-xl border border-surface-container-high">
           <div class="flex items-center justify-between text-body-sm text-on-surface-variant">
-            <span class="text-[11px] font-medium">10 €</span>
-            <span id="slider-val-hint" class="text-[11px] font-semibold text-primary">Límite: 90 €</span>
-            <span class="text-[11px] font-medium">300 €</span>
+            <span class="text-[11px] font-medium">1 €</span>
+            <span id="slider-val-hint" class="text-[11px] font-semibold text-primary">Límite: 90,00 €</span>
+            <span class="text-[11px] font-medium">200 €</span>
           </div>
-          <input id="budget-range-slider" type="range" min="10" max="300" step="5" value="90" class="w-full accent-[#00652c] cursor-pointer h-2 bg-surface-container-high rounded-lg appearance-none"/>
+          <input id="budget-range-slider" type="range" min="1" max="200" step="5" value="90" class="w-full accent-[#00652c] cursor-pointer h-2 bg-surface-container-high rounded-lg appearance-none"/>
         </div>
       </div>
     </div>

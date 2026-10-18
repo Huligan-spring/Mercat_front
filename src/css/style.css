@@ -164,8 +164,32 @@
 }
 
 /* Contenedor del lector real de html5-qrcode para que ocupe todo el marco */
+#interactive-scanner {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  overflow: hidden !important;
+  border-radius: inherit !important;
+}
+
 #interactive-scanner video {
   width: 100% !important;
   height: 100% !important;
   object-fit: cover !important;
+  border-radius: inherit !important;
+}
+
+#interactive-scanner__scan_region {
+  position: absolute !important;
+  inset: 0 !important;
+  width: 100% !important;
+  height: 100% !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+}
+
+#interactive-scanner canvas {
+  display: none !important;
 }

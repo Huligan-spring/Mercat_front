@@ -181,6 +181,9 @@ stateDiagram-v2
 - **Ámbar (`#f59e0b`):** Advertencia didáctica: estás a punto de alcanzar tu tope de gasto.
 - **Rojo (`#ba1a1a`):** Alerta visual: te has pasado de tu presupuesto asignado.
 
+> [!TIP]
+> **Configuración y Persistencia:** El límite de presupuesto se puede regular mediante la barra deslizadora (de 1 € a 200 € en saltos de 5 €) o tecleando cualquier cantidad exacta incluyendo céntimos (ej. `45.50 €`). La aplicación recuerda automáticamente el último presupuesto configurado en el teléfono (`localStorage`), evitando tener que redefinirlo en cada compra.
+
 ---
 
 ### D. Guardado de la Compra en Supabase
@@ -225,7 +228,9 @@ Para garantizar que el código sea fácil de mantener y de explicar a terceros, 
    - Guarda los cambios en `localStorage` inmediatamente para no perder la compra si la pantalla del móvil se apaga.
    - Calcula subtotales y formatea los números con coma decimal europea y símbolo de euro (`3,50 €`).
 4. **`src/js/budget.js`:**
-   - Calcula el porcentaje del presupuesto y devuelve el color y el icono correspondiente.
+   - Gestiona el presupuesto configurable por el usuario entre 1 € y 200 € (con soporte para céntimos).
+   - Recuerda automáticamente el último límite configurado en el almacenamiento local del teléfono (`localStorage`).
+   - Evalúa el porcentaje consumido y determina los estados de alerta visual (verde, ámbar y rojo).
 5. **`src/js/modals.js`:**
    - Controla la apertura y cierre suave de los paneles inferiores mediante transiciones de Tailwind CSS.
 6. **`src/main.js`:**

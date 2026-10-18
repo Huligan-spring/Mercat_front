@@ -408,15 +408,44 @@ savePurchaseBtn?.addEventListener('click', async () => {
 // =========================================================================
 function syncBudget(newVal) {
   const saved = saveBudget(newVal);
-  if (budgetSliderEl) budgetSliderEl.value = saved;
+  if (budgetSliderEl) budgetSliderEl.value = Math.min(200, Math.max(1, Math.round(saved)));
   if (budgetNumericInputEl) budgetNumericInputEl.value = saved;
-  if (sliderHintEl) sliderHintEl.textContent = `Límite: ${saved} €`;
+  if (sliderHintEl) sliderHintEl.textContent = `Límite: ${formatEur(saved)}`;
   renderCart();
+  return saved;
 }
 
-budgetSliderEl?.addEventListener('input', (e) => syncBudget(e.target.value));
-budgetNumericInputEl?.addEventListener('input', (e) => syncBudget(e.target.value));
-budgetNumericInputEl?.addEventListener('change', (e) => syncBudget(e.target.value));
+// 1. Cuando se mueve la barra deslizadora (de 5 en 5 €)
+budgetSliderEl?.addEventListener('input', (e) => {
+  const val = parseFloat(e.target.value);
+  const saved = saveBudget(val);
+  if (budgetNumericInputEl) budgetNumericInputEl.value = saved;
+  if (sliderHintEl) sliderHintEl.textContent = `Límite: ${formatEur(saved)}`;
+  renderCart();
+});
+
+// 2. Cuando el usuario teclea en el campo numérico (permite escribir cualquier número y céntimos)
+budgetNumericInputEl?.addEventListener('input', (e) => {
+  const val = parseFloat(e.target.value);
+  // No sobreescribimos budgetNumericInputEl.value mientras el usuario está escribiendo
+  if (!isNaN(val) && val >= 1 && val <= 200) {
+    saveBudget(val);
+    if (budgetSliderEl) budgetSliderEl.value = Math.min(200, Math.max(1, Math.round(val)));
+    if (sliderHintEl) sliderHintEl.textContent = `Límite: ${formatEur(val)}`;
+    renderCart();
+  }
+});
+
+// 3. Al confirmar o salir del campo numérico (change)
+budgetNumericInputEl?.addEventListener('change', (e) => {
+  const val = parseFloat(e.target.value);
+  const current = isNaN(val) ? getStoredBudget() : val;
+  const saved = saveBudget(current);
+  budgetNumericInputEl.value = saved;
+  if (budgetSliderEl) budgetSliderEl.value = Math.min(200, Math.max(1, Math.round(saved)));
+  if (sliderHintEl) sliderHintEl.textContent = `Límite: ${formatEur(saved)}`;
+  renderCart();
+});
 
 // =========================================================================
 // 10. HISTORIAL LOCAL Y LISTA DE LA COMPRA PREVIA

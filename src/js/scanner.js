@@ -26,14 +26,12 @@ let lastScannedCode = null;
 let lastScannedTimestamp = 0;
 const DUPLICATE_COOLDOWN_MS = 3500; // 3.5 segundos de enfriamiento para el MISMO código continuo
 
-// Formatos reconocidos: EAN-13, EAN-8, UPC, Code 128 y códigos QR/DataMatrix (Mercadona GS1 Digital Link)
+// Formatos optimizados para supermercado (EAN-13, EAN-8, UPC-A y QR/DataMatrix GS1 Mercadona)
 const BARCODE_FORMATS = [
   Html5QrcodeSupportedFormats.EAN_13,
   Html5QrcodeSupportedFormats.EAN_8,
-  Html5QrcodeSupportedFormats.UPC_A,
-  Html5QrcodeSupportedFormats.UPC_E,
-  Html5QrcodeSupportedFormats.CODE_128,
   Html5QrcodeSupportedFormats.QR_CODE,
+  Html5QrcodeSupportedFormats.UPC_A,
   Html5QrcodeSupportedFormats.DATA_MATRIX
 ];
 
@@ -71,7 +69,7 @@ function triggerVibration() {
 }
 
 /**
- * Inicializa y arranca la cámara con aceleración por hardware nativa.
+ * Inicializa y arranca la cámara con decodificación omnidireccional (horizontal y vertical).
  * 
  * @param {string} elementId Identificador del contenedor DOM
  * @param {Function} onCodeDetected Callback al detectar código con éxito (barcode, injectedPrice)
@@ -82,27 +80,24 @@ export async function startScanner(elementId, onCodeDetected, onError) {
     if (!html5QrCode) {
       html5QrCode = new Html5Qrcode(elementId, {
         formatsToSupport: BARCODE_FORMATS,
-        verbose: false,
-        // Activa el decodificador nativo BarcodeDetector del navegador (C++/GPU en Android)
-        experimentalFeatures: {
-          useBarCodeDetectorIfSupported: true
-        }
+        verbose: false
       });
     }
 
     const cameraConfig = { facingMode: 'environment' };
 
-    // Configuración optimizada para máxima velocidad de lectura:
-    // - 20 FPS: muestreo rápido
-    // - qrbox enfocado: procesa hasta 3x menos píxeles por fotograma, evitando tirones en el móvil
+    // Configuración idéntica al repositorio de referencia:
+    // - 20 FPS: muestreo rápido y fluido
+    // - qrbox cuadrado (250x250): lectura simétrica perfecta tanto en horizontal como en vertical
+    // - aspectRatio 1.0: encuadre cuadrado que evita recortes de códigos verticales
     const scanConfig = {
       fps: 20,
       qrbox: (viewfinderWidth, viewfinderHeight) => {
-        const width = Math.min(Math.floor(viewfinderWidth * 0.85), 320);
-        const height = Math.min(Math.floor(viewfinderHeight * 0.65), 200);
-        return { width, height };
+        const minEdge = Math.min(viewfinderWidth, viewfinderHeight);
+        const size = Math.min(Math.floor(minEdge * 0.8), 260);
+        return { width: size, height: size };
       },
-      aspectRatio: 4 / 3
+      aspectRatio: 1.0
     };
 
     const onScanSuccess = (decodedText) => {

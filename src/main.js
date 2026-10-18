@@ -394,12 +394,19 @@ savePurchaseBtn?.addEventListener('click', async () => {
 
     const result = await savePurchase(payloadItems);
 
-    // Guardar en el historial local para consulta inmediata
+    // Guardar en el historial local con desglose de productos para consulta del tiquet
     saveToLocalHistory({
       id: result.id || Date.now(),
-      date: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric' }),
+      date: new Date().toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }),
       total: calculateTotal(),
-      itemCount: items.reduce((acc, i) => acc + i.quantity, 0)
+      itemCount: items.reduce((acc, i) => acc + i.quantity, 0),
+      items: items.map(i => ({
+        id: i.id,
+        name: i.name,
+        price: i.price,
+        quantity: i.quantity,
+        barcode: i.barcode
+      }))
     });
 
     // Vaciar el carrito
@@ -474,6 +481,8 @@ budgetNumericInputEl?.addEventListener('change', (e) => {
 // 10. HISTORIAL LOCAL Y LISTA DE LA COMPRA PREVIA
 // =========================================================================
 const HISTORY_KEY = 'mercat_purchase_history';
+const historyItemsContainer = document.getElementById('history-items-container');
+
 function saveToLocalHistory(entry) {
   try {
     const list = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
@@ -483,32 +492,165 @@ function saveToLocalHistory(entry) {
   } catch (e) {}
 }
 
+function deletePurchaseFromHistory(purchaseId) {
+  try {
+    const list = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    const filtered = list.filter(item => item.id !== purchaseId);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(filtered));
+    renderHistoryDrawer();
+    showToast('Compra eliminada del historial', 'delete_outline');
+  } catch (e) {}
+}
+
+function reloadPurchaseToCart(purchaseId) {
+  try {
+    const list = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    const found = list.find(item => item.id === purchaseId);
+    if (found && Array.isArray(found.items) && found.items.length > 0) {
+      found.items.forEach(prod => {
+        addProductToCart(prod);
+      });
+      renderCart();
+      closeAllModals();
+      showToast(`¡${found.items.length} productos cargados en tu cesta!`, 'shopping_cart');
+    }
+  } catch (e) {}
+}
+
 function renderHistoryDrawer() {
-  const container = document.getElementById('history-items-container');
-  if (!container) return;
+  if (!historyItemsContainer) return;
 
   try {
     const list = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
     if (list.length === 0) {
-      container.innerHTML = `
-        <div class="text-center py-6 text-on-surface-variant text-body-sm">
-          Aún no has guardado ninguna compra.
+      historyItemsContainer.innerHTML = `
+        <div class="text-center py-8 text-on-surface-variant flex flex-col items-center gap-2">
+          <span class="material-symbols-outlined text-[36px] text-outline-variant">receipt_long</span>
+          <span class="text-body-sm font-medium">Aún no has guardado ninguna compra.</span>
         </div>
       `;
       return;
     }
 
-    container.innerHTML = list.map(item => `
-      <div class="p-3 rounded-xl bg-surface-container-lowest border border-surface-container-high shadow-sm flex items-center justify-between">
-        <div class="flex flex-col gap-0.5">
-          <span class="font-headline-sm text-[15px] text-on-surface font-bold">Compra en Mercadona</span>
-          <span class="font-body-sm text-on-surface-variant text-[12px]">${item.date} • ${item.itemCount} productos</span>
+    historyItemsContainer.innerHTML = list.map((item, index) => {
+      const itemsList = Array.isArray(item.items) ? item.items : [];
+      const hasItems = itemsList.length > 0;
+      const ticketIdFormatted = (item.id || '').toString().slice(-4) || (index + 1);
+
+      return `
+        <div class="purchase-card rounded-2xl bg-surface-container-lowest border border-surface-container-high shadow-sm overflow-hidden transition-all duration-200" data-purchase-id="${item.id}">
+          
+          <!-- Encabezado de la compra (Tocar para expandir/colapsar detalles) -->
+          <button type="button" class="btn-toggle-ticket w-full p-3.5 flex items-center justify-between text-left hover:bg-surface-container-low transition-colors select-none" data-id="${item.id}">
+            <div class="flex flex-col gap-0.5 min-w-0 pr-2">
+              <div class="flex items-center gap-1.5">
+                <span class="font-headline-sm text-[15px] text-on-surface font-bold">Compra #${ticketIdFormatted}</span>
+                <span class="material-symbols-outlined text-[18px] text-primary transition-transform duration-200 ticket-chevron">expand_more</span>
+              </div>
+              <span class="font-body-sm text-on-surface-variant text-[12px] truncate">${item.date} • ${item.itemCount || itemsList.reduce((acc, i) => acc + i.quantity, 0)} productos</span>
+            </div>
+            <div class="text-right flex flex-col items-end shrink-0">
+              <span class="font-headline-sm text-[16px] text-primary font-bold">${formatEur(item.total)}</span>
+              <span class="text-[11px] text-primary font-medium flex items-center gap-0.5">
+                <span>Ver tiquet</span>
+              </span>
+            </div>
+          </button>
+
+          <!-- Tíquet detallado desplegable -->
+          <div class="ticket-details hidden border-t border-dashed border-surface-container-high bg-surface-container-low/30 p-3.5 flex flex-col gap-2.5 font-sans">
+            
+            <div class="flex items-center justify-between text-on-surface-variant text-[11px] font-mono uppercase tracking-wider pb-1 border-b border-surface-container-high">
+              <span>Artículo</span>
+              <span>Uds x Precio • Subtotal</span>
+            </div>
+
+            <!-- Listado de productos comprados -->
+            <div class="flex flex-col gap-2">
+              ${hasItems ? itemsList.map(prod => `
+                <div class="flex items-center justify-between gap-2 text-body-sm">
+                  <div class="flex flex-col min-w-0">
+                    <span class="font-semibold text-on-surface text-[13px] truncate">${prod.name}</span>
+                    <span class="text-on-surface-variant text-[11px]">${prod.quantity} ud${prod.quantity > 1 ? 's' : ''} x ${formatEur(prod.price)}</span>
+                  </div>
+                  <span class="font-bold text-on-surface text-[13px] shrink-0 text-right">
+                    ${formatEur(prod.price * prod.quantity)}
+                  </span>
+                </div>
+              `).join('') : `
+                <div class="text-on-surface-variant text-[12px] italic text-center py-1">
+                  Desglose de artículos no disponible en este registro anterior.
+                </div>
+              `}
+            </div>
+
+            <!-- Total del Tíquet -->
+            <div class="border-t border-dashed border-outline-variant/60 pt-2.5 mt-1 flex items-center justify-between">
+              <div class="flex flex-col">
+                <span class="text-[11px] uppercase font-mono text-on-surface-variant font-bold">Total Compra</span>
+                <span class="text-[11px] text-on-surface-variant">${item.date}</span>
+              </div>
+              <span class="font-headline-sm text-[17px] text-primary font-extrabold">${formatEur(item.total)}</span>
+            </div>
+
+            <!-- Acciones del Tíquet: Cargar de nuevo o Borrar -->
+            <div class="flex items-center justify-between pt-2 border-t border-surface-container-high/60 gap-2">
+              ${hasItems ? `
+                <button type="button" class="btn-reload-cart btn-tactile text-primary hover:bg-primary/10 text-[12px] font-semibold py-1.5 px-3 rounded-lg flex items-center gap-1 transition-colors" data-id="${item.id}">
+                  <span class="material-symbols-outlined text-[16px]">restart_alt</span>
+                  <span>Repetir cesta</span>
+                </button>
+              ` : '<div></div>'}
+              <button type="button" class="btn-delete-purchase btn-tactile text-error hover:bg-error/10 text-[12px] font-medium py-1.5 px-2.5 rounded-lg flex items-center gap-1 transition-colors" data-id="${item.id}">
+                <span class="material-symbols-outlined text-[16px]">delete</span>
+                <span>Eliminar</span>
+              </button>
+            </div>
+
+          </div>
+
         </div>
-        <span class="font-headline-sm text-[16px] text-primary font-bold">${formatEur(item.total)}</span>
-      </div>
-    `).join('');
-  } catch (e) {}
+      `;
+    }).join('');
+  } catch (e) {
+    console.warn('[History] Error renderizando historial:', e);
+  }
 }
+
+// Delegación de eventos para el historial: desplegar tiquet, repetir cesta y eliminar
+historyItemsContainer?.addEventListener('click', (e) => {
+  const toggleBtn = e.target.closest('.btn-toggle-ticket');
+  const deleteBtn = e.target.closest('.btn-delete-purchase');
+  const reloadBtn = e.target.closest('.btn-reload-cart');
+
+  if (deleteBtn) {
+    e.stopPropagation();
+    const purchaseId = parseInt(deleteBtn.getAttribute('data-id'), 10);
+    deletePurchaseFromHistory(purchaseId);
+    return;
+  }
+
+  if (reloadBtn) {
+    e.stopPropagation();
+    const purchaseId = parseInt(reloadBtn.getAttribute('data-id'), 10);
+    reloadPurchaseToCart(purchaseId);
+    return;
+  }
+
+  if (toggleBtn) {
+    const card = toggleBtn.closest('.purchase-card');
+    if (!card) return;
+    const details = card.querySelector('.ticket-details');
+    const chevron = card.querySelector('.ticket-chevron');
+    if (details) {
+      const isHidden = details.classList.contains('hidden');
+      details.classList.toggle('hidden', !isHidden);
+      if (chevron) {
+        chevron.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+      }
+    }
+  }
+});
 
 // Lista previa de tareas (Checklist)
 const SHOPPING_LIST_KEY = 'mercat_pending_list';

@@ -220,9 +220,9 @@ El proyecto se estructura en módulos especializados para mantener una arquitect
    - Contiene las funciones `fetch` que se comunican con el backend.
    - Incluye la función `pingBackend(timeoutMs)`, que envía una petición ligera con límite de tiempo (`AbortController`) para verificar y despertar la instancia en segundo plano. Si el servidor responde rápidamente, la app evita mostrar avisos innecesarios al usuario.
 2. **`src/js/scanner.js`:**
-   - Controla la cámara y la decodificación en tiempo real mediante `html5-qrcode`.
-   - Activa aceleración nativa por hardware (`BarcodeDetector` en C++/GPU en navegadores compatibles) y muestreo a 20 FPS con marco de lectura enfocado (`qrbox`), optimizando el rendimiento en procesadores móviles.
-   - Decodifica tanto códigos de barras lineales tradicionales (EAN-13, EAN-8, UPC, Code 128) como códigos QR dinámicos de Mercadona (GS1 Digital Link para productos de peso variable en carne/pescado), extrayendo el GTIN y el precio inyectado.
+   - Controla la cámara y la decodificación omnidireccional en tiempo real mediante `html5-qrcode`.
+   - Implementa encuadre cuadrado (`aspectRatio: 1.0`) y ventana de lectura simétrica (`qrbox: 260x260`) con motor ZXing enfocado en formatos de supermercado (`EAN-13`, `EAN-8`, `UPC-A`, `QR_CODE`, `DATA_MATRIX`). Esto garantiza una lectura instantánea sin importar si el código de barras se sostiene en horizontal, vertical o inclinado.
+   - Decodifica códigos QR dinámicos de Mercadona (GS1 Digital Link para productos de peso variable en carne/pescado), extrayendo el GTIN y el precio inyectado.
    - Incorpora protección anti-duplicados: pausa inmediata al detectar el producto, reanudación automática tras 1.8 segundos y tiempo de enfriamiento de 3.5 segundos para evitar lecturas repetidas si el usuario mantiene el producto frente a la cámara.
    - Proporciona control de linterna (*torch*) y feedback sensorial sutil (*Beep* sintético Web Audio y vibración háptica).
 3. **`src/js/cart.js`:**
@@ -236,7 +236,8 @@ El proyecto se estructura en módulos especializados para mantener una arquitect
 5. **`src/js/modals.js`:**
    - Controla la apertura y cierre suave de los paneles inferiores mediante transiciones de Tailwind CSS.
 6. **`src/main.js`:**
-   - Conecta todos los módulos anteriores, gestiona los clics de botones y arranca la aplicación.
+   - Conecta todos los módulos anteriores, gestiona los eventos de usuario y arranca la aplicación.
+   - Administra el historial de compras interactivo con visualización desplegable de tiquets completos (artículos, cantidades, precios unitarios, subtotales, fecha/hora y opción de recargar la compra en la cesta).
 
 ---
 

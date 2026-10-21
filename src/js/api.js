@@ -139,6 +139,36 @@ export async function getAllProducts() {
 }
 
 /**
+ * Consulta sugerencias de productos predictivas por texto o código en el backend.
+ * 
+ * @param {string} query Término de búsqueda (ej: "nuez", "pan", "8480")
+ * @returns {Promise<Array>} Lista de hasta 6 productos [{ id, barcode, name, price }, ...]
+ */
+export async function searchSuggestions(query) {
+  if (!query || query.trim().length < 2) {
+    return [];
+  }
+  try {
+    const cleanQuery = encodeURIComponent(query.trim());
+    const response = await fetch(`${API_BASE_URL}/products/search?q=${cleanQuery}`, {
+      method: 'GET',
+      headers: {
+        'Accept': 'application/json'
+      }
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.warn('[API] Error al buscar sugerencias:', error);
+    return [];
+  }
+}
+
+/**
  * Guarda la compra finalizada en el backend.
  * 
  * Estructura esperada por Spring Boot:

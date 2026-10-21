@@ -254,7 +254,7 @@ El backend expone los siguientes endpoints que consume este frontend:
 | **PUT** | `/api/v1/products/{barcode}` | Modifica un producto existente | `{"barcode": "...", "name": "...", "price": 1.70}` |
 | **GET** | `/api/v1/products` | Lista catálogo completo | *Ninguno* |
 | **POST** | `/api/v1/purchases` | Registra una compra finalizada | `{"items": [{"productId": 3, "quantity": 2}]}` |
-| **GET** *(Propuesto)* | `/api/v1/products/search?q={texto}` | Sugerencias en tiempo real mientras el usuario escribe | *Ninguno* |
+| **GET** | `/api/v1/products/search?q={texto}` | Sugerencias predictivas en tiempo real mientras el usuario escribe | *Ninguno* |
 
 ### 💡 Diseño Didáctico: Endpoint de Sugerencias en Spring Boot
 Para implementar el desplegable de autocompletado cuando el usuario escribe letras en el buscador:

@@ -126,10 +126,14 @@
         <form id="search-form" class="flex items-center gap-2" onsubmit="event.preventDefault();">
           <div class="relative flex-1">
             <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[20px] text-on-surface-variant pointer-events-none">search</span>
-            <input id="search-product-input" type="text" placeholder="Buscar producto o escribir código..." class="w-full pl-10 pr-8 py-2 rounded-xl bg-surface-container-lowest border border-surface-container-high text-on-surface placeholder:text-outline font-body-md text-body-md focus:outline-none focus:ring-2 focus:ring-primary/40 shadow-sm transition-all"/>
+            <input id="search-product-input" type="text" placeholder="Buscar producto o escribir código..." autocomplete="off" class="w-full pl-10 pr-8 py-2 rounded-xl bg-surface-container-lowest border border-surface-container-high text-on-surface placeholder:text-outline font-body-md text-body-md focus:outline-none focus:ring-2 focus:ring-primary/40 shadow-sm transition-all"/>
             <button id="clear-search-btn" type="button" aria-label="Limpiar búsqueda" class="absolute right-2.5 top-1/2 -translate-y-1/2 text-on-surface-variant hover:text-on-surface hidden p-0.5 rounded-full">
               <span class="material-symbols-outlined text-[16px] block">close</span>
             </button>
+
+            <!-- Menú Flotante de Sugerencias Predictivas -->
+            <ul id="search-suggestions" class="hidden absolute top-full left-0 right-0 mt-1.5 bg-surface-container-lowest border border-surface-container-high/80 rounded-2xl shadow-xl overflow-hidden z-40 divide-y divide-surface-container-low max-h-64 overflow-y-auto">
+            </ul>
           </div>
           <button id="search-product-btn" type="submit" aria-label="Añadir producto" class="btn-tactile h-10 w-11 px-0 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-label-md text-label-md font-semibold flex items-center justify-center shrink-0 shadow-sm transition-all">
             <span class="material-symbols-outlined text-[20px]">add_shopping_cart</span>

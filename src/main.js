@@ -13,7 +13,7 @@
  */
 
 import './css/style.css';
-import { pingBackend, getProductByBarcode, createProduct, savePurchase } from './js/api.js';
+import { pingBackend, getProductByBarcode, createProduct, savePurchase, searchSuggestions } from './js/api.js';
 import { startScanner, stopScanner, pauseScanner, resumeScanner, toggleTorch, isScannerRunning, isCameraPaused, resetLastScannedCode } from './js/scanner.js';
 import { loadCart, getCartItems, addProductToCart, incrementQuantity, decrementQuantity, removeProduct, clearCart, calculateTotal, formatEur } from './js/cart.js';
 import { getStoredBudget, saveBudget, evaluateBudget } from './js/budget.js';
@@ -75,6 +75,7 @@ const torchAmbientEl = document.getElementById('torch-ambient');
 const searchFormEl = document.getElementById('search-form');
 const searchInputEl = document.getElementById('search-product-input');
 const clearSearchBtnEl = document.getElementById('clear-search-btn');
+const searchSuggestionsEl = document.getElementById('search-suggestions');
 
 // Botón de Guardar Compra
 const savePurchaseBtn = document.getElementById('save-purchase-btn');
@@ -323,47 +324,148 @@ cartListEl?.addEventListener('click', (e) => {
 });
 
 // =========================================================================
-// 7. EVENTOS DE BÚSQUEDA MANUAL O POR CÓDIGO
+// 7. EVENTOS DE BÚSQUEDA MANUAL PREDICTIVA (POR NOMBRE O CÓDIGO)
 // =========================================================================
+let searchDebounceTimer = null;
+
+/**
+ * Oculta y vacía el contenedor flotante de sugerencias.
+ */
+function hideSearchSuggestions() {
+  if (searchSuggestionsEl) {
+    searchSuggestionsEl.classList.add('hidden');
+    searchSuggestionsEl.innerHTML = '';
+  }
+}
+
+/**
+ * Renderiza la lista flotante de sugerencias predictivas.
+ * 
+ * @param {Array<Object>} suggestions Lista de productos devuelta por la API
+ */
+function renderSearchSuggestions(suggestions) {
+  if (!searchSuggestionsEl) return;
+
+  if (!suggestions || suggestions.length === 0) {
+    searchSuggestionsEl.innerHTML = `
+      <li class="px-4 py-3 text-center text-on-surface-variant text-[13px] flex items-center justify-center gap-2 select-none">
+        <span class="material-symbols-outlined text-[18px]">inventory_2</span>
+        <span>Producto no catalogado</span>
+      </li>
+    `;
+    searchSuggestionsEl.classList.remove('hidden');
+    return;
+  }
+
+  searchSuggestionsEl.innerHTML = suggestions.map(item => `
+    <li class="suggestion-item px-4 py-2.5 flex items-center justify-between hover:bg-surface-container cursor-pointer transition-colors active:bg-surface-container-high"
+        data-barcode="${item.barcode}">
+      <div class="flex flex-col min-w-0 pr-3">
+        <span class="font-bold text-on-surface text-[14px] leading-tight truncate">${item.name}</span>
+        <span class="text-[11px] text-on-surface-variant flex items-center gap-1 mt-0.5 font-mono">
+          <span class="material-symbols-outlined text-[13px]">barcode</span>
+          ${item.barcode}
+        </span>
+      </div>
+      <span class="px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800 text-[13px] font-bold shrink-0">
+        ${formatEur(item.price)}
+      </span>
+    </li>
+  `).join('');
+
+  searchSuggestionsEl.classList.remove('hidden');
+}
+
+// 1. Entrada de texto en vivo (Live Search con Debounce)
+searchInputEl?.addEventListener('input', () => {
+  const val = searchInputEl.value.trim();
+  clearSearchBtnEl.classList.toggle('hidden', val.length === 0);
+
+  // A. Si detecta exactamente 13 números continuos (código EAN-13), procesarlo de inmediato
+  if (/^\d{13}$/.test(val)) {
+    if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+    hideSearchSuggestions();
+    const barcodeToProcess = val;
+    searchInputEl.value = '';
+    clearSearchBtnEl.classList.add('hidden');
+    handleBarcodeDetected(barcodeToProcess);
+    return;
+  }
+
+  // B. Si hay menos de 2 caracteres, no consultar el backend y ocultar el menú
+  if (val.length < 2) {
+    if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+    hideSearchSuggestions();
+    return;
+  }
+
+  // C. Debounce de 250ms para evitar saturar el servidor en cada pulsación
+  if (searchDebounceTimer) clearTimeout(searchDebounceTimer);
+  searchDebounceTimer = setTimeout(async () => {
+    try {
+      const suggestions = await searchSuggestions(val);
+      // Verificar que el input continúe teniendo el mismo valor al llegar la respuesta
+      if (searchInputEl.value.trim() === val) {
+        renderSearchSuggestions(suggestions);
+      }
+    } catch (err) {
+      console.warn('[Search] Error consultando sugerencias:', err);
+    }
+  }, 250);
+});
+
+// 2. Selección con un clic sobre un producto sugerido
+searchSuggestionsEl?.addEventListener('click', (e) => {
+  const li = e.target.closest('.suggestion-item');
+  if (li && li.dataset.barcode) {
+    const barcode = li.dataset.barcode;
+    hideSearchSuggestions();
+    searchInputEl.value = '';
+    clearSearchBtnEl.classList.add('hidden');
+    handleBarcodeDetected(barcode);
+  }
+});
+
+// 3. Envío del formulario (Enter o botón Buscar)
 searchFormEl?.addEventListener('submit', async (e) => {
   e.preventDefault();
   const query = searchInputEl.value.trim();
   if (!query) return;
 
-  // Si son dígitos continuos (ej: EAN-13 o EAN-8), lo procesamos directamente como código
+  hideSearchSuggestions();
+
+  // Si son dígitos continuos (ej: EAN-13 o EAN-8), procesar directamente como código
   if (/^\d{6,14}$/.test(query)) {
     await handleBarcodeDetected(query);
     searchInputEl.value = '';
     clearSearchBtnEl.classList.add('hidden');
   } else {
-    // Si es texto, buscamos si ya está en la cesta
-    const items = getCartItems();
-    const found = items.find(i => i.name.toLowerCase().includes(query.toLowerCase()));
-    if (found) {
-      showToast(`"${found.name}" ya está en tu cesta (${found.quantity} uds)`, 'info');
+    // Si es texto, consultamos el backend y tomamos la primera coincidencia
+    const suggestions = await searchSuggestions(query);
+    if (suggestions && suggestions.length > 0) {
+      const bestMatch = suggestions[0];
+      searchInputEl.value = '';
+      clearSearchBtnEl.classList.add('hidden');
+      await handleBarcodeDetected(bestMatch.barcode);
     } else {
-      showToast(`Escribe el código numérico o enfócalo con la cámara`, 'barcode_scanner');
+      showToast(`No se encontró "${query}" en el catálogo`, 'search_off');
     }
   }
 });
 
-searchInputEl?.addEventListener('input', async () => {
-  const val = searchInputEl.value.trim();
-  clearSearchBtnEl.classList.toggle('hidden', val.length === 0);
-
-  // Si detecta exactamente 13 números continuos (código EAN-13), lo procesa automáticamente
-  if (/^\d{13}$/.test(val)) {
-    const barcodeToProcess = val;
-    searchInputEl.value = '';
-    clearSearchBtnEl.classList.add('hidden');
-    await handleBarcodeDetected(barcodeToProcess);
-  }
-});
-
+// 4. Botón de limpiar campo de búsqueda
 clearSearchBtnEl?.addEventListener('click', () => {
   searchInputEl.value = '';
   clearSearchBtnEl.classList.add('hidden');
+  hideSearchSuggestions();
   searchInputEl.focus();
+});
+
+// 5. Cierre automático del menú al pulsar fuera de él
+document.addEventListener('click', (e) => {
+  if (searchSuggestionsEl && !searchSuggestionsEl.contains(e.target) && !searchInputEl?.contains(e.target)) {
+    hideSearchSuggestions();
+  }
 });
 
 // =========================================================================

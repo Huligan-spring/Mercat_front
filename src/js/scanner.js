@@ -82,6 +82,8 @@ export async function startScanner(elementId, onCodeDetected, onError) {
         formatsToSupport: BARCODE_FORMATS,
         verbose: false
       });
+      // Desactiva el aviso interno por defecto "Scanner paused" de html5-qrcode
+      html5QrCode.showPausedState = () => {};
     }
 
     const cameraConfig = { facingMode: 'environment' };

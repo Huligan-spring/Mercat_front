@@ -175,3 +175,9 @@
 #interactive-scanner canvas {
   display: none !important;
 }
+
+/* Ocultar el aviso por defecto 'Scanner paused' inyectado internamente por html5-qrcode */
+#interactive-scanner div[style*="top: 0px"],
+#interactive-scanner div[style*="rgba(9, 9, 9"] {
+  display: none !important;
+}

@@ -14,7 +14,7 @@
 
 import './css/style.css';
 import { pingBackend, getProductByBarcode, createProduct, savePurchase } from './js/api.js';
-import { startScanner, pauseScanner, resumeScanner, toggleTorch, isScannerRunning, isCameraPaused, resetLastScannedCode } from './js/scanner.js';
+import { startScanner, stopScanner, pauseScanner, resumeScanner, toggleTorch, isScannerRunning, isCameraPaused, resetLastScannedCode } from './js/scanner.js';
 import { loadCart, getCartItems, addProductToCart, incrementQuantity, decrementQuantity, removeProduct, clearCart, calculateTotal, formatEur } from './js/cart.js';
 import { getStoredBudget, saveBudget, evaluateBudget } from './js/budget.js';
 import { initModals, openModal, closeAllModals, showToast, showScannedProductModal } from './js/modals.js';
@@ -197,8 +197,6 @@ function renderCart() {
  */
 async function handleBarcodeDetected(barcode, detectedPrice = null) {
   if (!barcode) return;
-
-  showToast(`Buscando código ${barcode}...`, 'search');
 
   try {
     // 1. Consultamos la API en Spring Boot
@@ -735,7 +733,29 @@ shoppingItemsContainer?.addEventListener('click', (e) => {
 // 11. CONTROLES DE LA CÁMARA Y LINTERNA
 // =========================================================================
 btnToggleCamera?.addEventListener('click', async () => {
-  if (!isScannerRunning()) {
+  if (isScannerRunning()) {
+    // Detiene por completo la cámara y libera el hardware para que otras apps (ej. lector nativo) puedan usarla
+    await stopScanner();
+    camIconEl.textContent = 'videocam_off';
+    camIconEl.className = 'material-symbols-outlined text-[18px] text-on-surface-variant';
+    camTextEl.textContent = 'Off';
+    camDotEl.className = 'w-2 h-2 rounded-full bg-outline-variant';
+    camOverlayEl.classList.remove('opacity-0', 'pointer-events-none');
+    camOverlayEl.classList.add('opacity-100', 'pointer-events-auto');
+    if (laserBeamEl) laserBeamEl.style.display = 'none';
+
+    // Apagar linterna si estaba activa
+    if (torchIconEl && torchTextEl && torchDotEl) {
+      torchIconEl.textContent = 'flashlight_off';
+      torchIconEl.className = 'material-symbols-outlined text-[18px] text-on-surface-variant';
+      torchTextEl.textContent = 'Off';
+      torchDotEl.className = 'w-2 h-2 rounded-full bg-outline-variant';
+      if (torchAmbientEl) torchAmbientEl.classList.add('opacity-0');
+    }
+
+    showToast('Cámara apagada y liberada', 'videocam_off');
+  } else {
+    // Inicia la cámara y el visor de escaneo
     const ok = await startScanner(
       'interactive-scanner',
       (detectedBarcode, detectedPrice) => {
@@ -755,30 +775,6 @@ btnToggleCamera?.addEventListener('click', async () => {
       if (laserBeamEl) laserBeamEl.style.display = 'flex';
       showToast('Cámara activada (On)', 'videocam');
     }
-    return;
-  }
-
-  const isPaused = isCameraPaused();
-  if (!isPaused) {
-    pauseScanner();
-    camIconEl.textContent = 'videocam_off';
-    camIconEl.className = 'material-symbols-outlined text-[18px] text-on-surface-variant';
-    camTextEl.textContent = 'Off';
-    camDotEl.className = 'w-2 h-2 rounded-full bg-outline-variant';
-    camOverlayEl.classList.remove('opacity-0', 'pointer-events-none');
-    camOverlayEl.classList.add('opacity-100', 'pointer-events-auto');
-    if (laserBeamEl) laserBeamEl.style.display = 'none';
-    showToast('Cámara desactivada (Off)', 'videocam_off');
-  } else {
-    resumeScanner();
-    camIconEl.textContent = 'videocam';
-    camIconEl.className = 'material-symbols-outlined text-[18px] text-primary';
-    camTextEl.textContent = 'On';
-    camDotEl.className = 'w-2 h-2 rounded-full bg-primary animate-pulse';
-    camOverlayEl.classList.add('opacity-0', 'pointer-events-none');
-    camOverlayEl.classList.remove('opacity-100', 'pointer-events-auto');
-    if (laserBeamEl) laserBeamEl.style.display = 'flex';
-    showToast('Cámara activada (On)', 'videocam');
   }
 });
 

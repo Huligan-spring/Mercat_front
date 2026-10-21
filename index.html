@@ -93,10 +93,10 @@
           <!-- Capa de brillo cuando la linterna está encendida -->
           <div id="torch-ambient" class="absolute inset-0 bg-amber-200/20 mix-blend-screen opacity-0 transition-opacity duration-300 pointer-events-none"></div>
 
-          <!-- Overlay cuando la cámara está pausada manualmente -->
+          <!-- Overlay cuando la cámara está apagada manualmente -->
           <div id="camera-paused-overlay" class="absolute inset-0 bg-inverse-surface/90 flex flex-col items-center justify-center gap-2 opacity-0 pointer-events-none transition-opacity duration-300 z-20">
             <span class="material-symbols-outlined text-outline-variant text-[36px]">videocam_off</span>
-            <span class="font-headline-sm text-sm text-inverse-on-surface font-semibold tracking-wide">Cámara pausada</span>
+            <span class="font-headline-sm text-sm text-inverse-on-surface font-semibold tracking-wide">Cámara apagada</span>
           </div>
 
         </div>
@@ -217,10 +217,9 @@
         Nombre del producto
       </h3>
 
-      <!-- Subtítulo y Precio Destacado -->
+      <!-- Precio Destacado -->
       <div class="flex flex-col items-center my-2">
-        <span class="text-[12px] font-semibold text-on-surface-variant uppercase tracking-wider">Añadido a la compra</span>
-        <span id="product-scanned-price" class="font-headline-sm text-3xl font-extrabold text-emerald-700 mt-1">
+        <span id="product-scanned-price" class="font-headline-sm text-3xl font-extrabold text-emerald-700">
           0,00 €
         </span>
       </div>

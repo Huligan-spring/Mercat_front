@@ -233,18 +233,22 @@ export function isCameraPaused() {
 }
 
 /**
- * Detiene por completo la cámara (libera el hardware).
+ * Detiene por completo la cámara (libera el hardware para otras aplicaciones).
  */
 export async function stopScanner() {
-  if (html5QrCode && isScanning) {
+  if (html5QrCode) {
     try {
-      await html5QrCode.stop();
+      const state = html5QrCode.getState();
+      if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+        await html5QrCode.stop();
+      }
+    } catch (err) {
+      console.warn('[Scanner] Error al detener la cámara:', err);
+    } finally {
       isScanning = false;
       isTorchOn = false;
       isPaused = false;
       isProcessingScan = false;
-    } catch (err) {
-      console.error('[Scanner] Error al detener la cámara:', err);
     }
   }
 }

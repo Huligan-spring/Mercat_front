@@ -224,6 +224,7 @@ El proyecto se estructura en módulos especializados para mantener una arquitect
    - Implementa encuadre cuadrado (`aspectRatio: 1.0`) y ventana de lectura simétrica (`qrbox: 260x260`) con motor ZXing enfocado en formatos de supermercado (`EAN-13`, `EAN-8`, `UPC-A`, `QR_CODE`, `DATA_MATRIX`). Esto garantiza una lectura instantánea sin importar si el código de barras se sostiene en horizontal, vertical o inclinado.
    - Decodifica códigos QR dinámicos de Mercadona (GS1 Digital Link para productos de peso variable en carne/pescado), extrayendo el GTIN y el precio inyectado.
    - Incorpora protección anti-duplicados: pausa inmediata al detectar el producto, reanudación automática tras 1.8 segundos y tiempo de enfriamiento de 3.5 segundos para evitar lecturas repetidas si el usuario mantiene el producto frente a la cámara.
+   - Proporciona control de encendido/apagado con liberación completa del hardware de la cámara (`stopScanner`), permitiendo que el usuario alterne sin conflicto hacia lectores de códigos nativos de Android.
    - Proporciona control de linterna (*torch*) y feedback sensorial sutil (*Beep* sintético Web Audio y vibración háptica).
 3. **`src/js/cart.js`:**
    - Gestiona el array de productos de la compra activa.

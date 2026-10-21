@@ -17,7 +17,7 @@ import { pingBackend, getProductByBarcode, createProduct, savePurchase } from '.
 import { startScanner, pauseScanner, resumeScanner, toggleTorch, isScannerRunning, isCameraPaused, resetLastScannedCode } from './js/scanner.js';
 import { loadCart, getCartItems, addProductToCart, incrementQuantity, decrementQuantity, removeProduct, clearCart, calculateTotal, formatEur } from './js/cart.js';
 import { getStoredBudget, saveBudget, evaluateBudget } from './js/budget.js';
-import { initModals, openModal, closeAllModals, showToast } from './js/modals.js';
+import { initModals, openModal, closeAllModals, showToast, showScannedProductModal } from './js/modals.js';
 
 // =========================================================================
 // 1. REGISTRO DEL SERVICE WORKER (PWA)
@@ -213,12 +213,11 @@ async function handleBarcodeDetected(barcode, detectedPrice = null) {
 
       addProductToCart(itemToAdd);
       renderCart();
-      showToast(`Añadido: ${itemToAdd.name} (${formatEur(itemToAdd.price)})`, 'check_circle');
 
-      // Reanudación automática del escáner tras 1.8 segundos para poder continuar escaneando
-      setTimeout(() => {
+      // Ventanita emergente destacada con nombre, precio y progreso de reanudación
+      showScannedProductModal(itemToAdd, () => {
         resumeScanner();
-      }, 1800);
+      });
     } else {
       // Caso 404: El producto no existe aún en la base de datos
       // Pausamos la cámara mientras se completa el formulario
@@ -264,17 +263,17 @@ formAddProductEl?.addEventListener('submit', async (e) => {
     // Llamada POST a Spring Boot
     const created = await createProduct({ barcode, name, price });
 
-    // Cerramos el modal
+    // Cerramos el modal de alta
     closeAllModals();
 
     // Añadimos el producto recién creado a la cesta activa
     addProductToCart(created);
     renderCart();
 
-    // Reanudamos el escáner de la cámara
-    resumeScanner();
-
-    showToast(`¡${created.name} guardado y añadido a la compra!`, 'task_alt');
+    // Ventanita emergente destacada y reanudación automática de la cámara
+    showScannedProductModal(created, () => {
+      resumeScanner();
+    });
   } catch (err) {
     showToast(`Error al crear producto: ${err.message}`, 'error');
   }

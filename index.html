@@ -202,6 +202,41 @@
   </div>
 
   <!-- =========================================================================
+       MODAL DE CONFIRMACIÓN DE PRODUCTO ESCANEADO (VENTANA CENTRADA)
+       ========================================================================= -->
+  <div id="product-scanned-modal" class="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm transition-opacity duration-200 opacity-0 pointer-events-none select-none">
+    <div id="product-scanned-card" class="w-full max-w-xs bg-surface-container-lowest rounded-3xl p-6 shadow-2xl border border-surface-container-high/80 flex flex-col items-center text-center transform scale-90 transition-transform duration-200">
+      
+      <!-- Icono de verificación verde grande -->
+      <div class="w-16 h-16 rounded-full bg-emerald-100 text-emerald-600 flex items-center justify-center mb-3 shadow-inner">
+        <span class="material-symbols-outlined text-[38px]">check_circle</span>
+      </div>
+
+      <!-- Nombre del Producto -->
+      <h3 id="product-scanned-name" class="font-headline-sm text-[18px] font-bold text-on-surface line-clamp-2 leading-snug mb-1">
+        Nombre del producto
+      </h3>
+
+      <!-- Subtítulo y Precio Destacado -->
+      <div class="flex flex-col items-center my-2">
+        <span class="text-[12px] font-semibold text-on-surface-variant uppercase tracking-wider">Añadido a la compra</span>
+        <span id="product-scanned-price" class="font-headline-sm text-3xl font-extrabold text-emerald-700 mt-1">
+          0,00 €
+        </span>
+      </div>
+
+      <!-- Barra de progreso temporal -->
+      <div class="w-full bg-surface-container h-1.5 rounded-full overflow-hidden mt-2">
+        <div id="product-scanned-progress" class="h-full bg-emerald-600 rounded-full w-full"></div>
+      </div>
+
+      <!-- Indicación para continuar -->
+      <span class="text-[11px] text-outline mt-2.5">Toca la pantalla para continuar</span>
+
+    </div>
+  </div>
+
+  <!-- =========================================================================
        5. PANELES DESPLEGABLES INFERIORES (DRAWERS / MODALES)
        ========================================================================= -->
   <div id="header-modals-backdrop" class="fixed inset-0 bg-inverse-surface/60 backdrop-blur-sm z-50 transition-opacity duration-300 opacity-0 pointer-events-none">

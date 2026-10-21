@@ -11,8 +11,11 @@
  * 5. Alta de nuevo producto (cuando un código no existe en Supabase - 404)
  */
 
+import { formatEur } from './cart.js';
+
 let backdropEl = null;
 let currentOpenPanel = null;
+let scannedModalTimer = null;
 
 /**
  * Inicializa las referencias de los modales en el DOM.
@@ -31,6 +34,7 @@ export function initModals() {
   document.addEventListener('keydown', (e) => {
     if (e.key === 'Escape') {
       closeAllModals();
+      closeScannedProductModal();
     }
   });
 }
@@ -103,4 +107,81 @@ export function showToast(message, iconName = 'check_circle') {
     toast.classList.add('opacity-0', 'pointer-events-none', '-translate-y-2.5');
     toast.classList.remove('opacity-100', 'translate-y-0');
   }, 2600);
+}
+
+/**
+ * Muestra la ventana emergente centrada cuando un producto es reconocido y añadido con éxito.
+ * Muestra el nombre, precio en grande, icono de confirmación y temporizador visual.
+ * 
+ * @param {Object} product Objeto con datos del producto ({ name, price, ... })
+ * @param {Function} onClose Callback que se ejecuta cuando se cierra la ventana (reanuda la cámara)
+ */
+export function showScannedProductModal(product, onClose) {
+  const modal = document.getElementById('product-scanned-modal');
+  const card = document.getElementById('product-scanned-card');
+  const nameEl = document.getElementById('product-scanned-name');
+  const priceEl = document.getElementById('product-scanned-price');
+  const progressEl = document.getElementById('product-scanned-progress');
+
+  if (!modal || !nameEl || !priceEl) return;
+
+  nameEl.textContent = product.name || 'Producto';
+  priceEl.textContent = formatEur(product.price);
+
+  // Reiniciar barra de progreso temporal
+  if (progressEl) {
+    progressEl.style.transition = 'none';
+    progressEl.style.width = '100%';
+    void progressEl.offsetWidth; // Forzar reflow en el navegador
+    progressEl.style.transition = 'width 1800ms linear';
+    progressEl.style.width = '0%';
+  }
+
+  // Mostrar modal y animar tarjeta al centro
+  clearTimeout(scannedModalTimer);
+  modal.classList.remove('opacity-0', 'pointer-events-none');
+  modal.classList.add('opacity-100', 'pointer-events-auto');
+  if (card) {
+    card.classList.remove('scale-90');
+    card.classList.add('scale-100');
+  }
+
+  let isClosed = false;
+  const dismissModal = () => {
+    if (isClosed) return;
+    isClosed = true;
+    clearTimeout(scannedModalTimer);
+    modal.classList.add('opacity-0', 'pointer-events-none');
+    modal.classList.remove('opacity-100', 'pointer-events-auto');
+    if (card) {
+      card.classList.add('scale-90');
+      card.classList.remove('scale-100');
+    }
+    if (typeof onClose === 'function') {
+      onClose();
+    }
+  };
+
+  // Cierre inmediato al tocar la pantalla
+  modal.onclick = dismissModal;
+
+  // Auto-cierre tras 1.8 segundos
+  scannedModalTimer = setTimeout(dismissModal, 1800);
+}
+
+/**
+ * Cierra inmediatamente la ventana de producto reconocido si estuviera abierta.
+ */
+export function closeScannedProductModal() {
+  const modal = document.getElementById('product-scanned-modal');
+  const card = document.getElementById('product-scanned-card');
+  clearTimeout(scannedModalTimer);
+  if (modal) {
+    modal.classList.add('opacity-0', 'pointer-events-none');
+    modal.classList.remove('opacity-100', 'pointer-events-auto');
+  }
+  if (card) {
+    card.classList.add('scale-90');
+    card.classList.remove('scale-100');
+  }
 }

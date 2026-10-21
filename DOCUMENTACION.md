@@ -235,6 +235,7 @@ El proyecto se estructura en módulos especializados para mantener una arquitect
    - Evalúa el porcentaje consumido y determina los estados de alerta visual (verde, ámbar y rojo).
 5. **`src/js/modals.js`:**
    - Controla la apertura y cierre suave de los paneles inferiores mediante transiciones de Tailwind CSS.
+   - Gestiona la ventana modal centrada de producto reconocido (`showScannedProductModal`), mostrando el nombre, precio destacado en grande, icono de confirmación y temporizador visual animado que reanuda el escáner automáticamente.
 6. **`src/main.js`:**
    - Conecta todos los módulos anteriores, gestiona los eventos de usuario y arranca la aplicación.
    - Administra el historial de compras interactivo con visualización desplegable de tiquets completos (artículos, cantidades, precios unitarios, subtotales, fecha/hora y opción de recargar la compra en la cesta).

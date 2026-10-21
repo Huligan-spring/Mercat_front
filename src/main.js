@@ -77,10 +77,20 @@ const searchInputEl = document.getElementById('search-product-input');
 const clearSearchBtnEl = document.getElementById('clear-search-btn');
 const searchSuggestionsEl = document.getElementById('search-suggestions');
 
-// Botón de Guardar Compra
+// Botón de Guardar Compra y Modal de Confirmación
 const savePurchaseBtn = document.getElementById('save-purchase-btn');
 const saveBtnIconEl = document.getElementById('save-btn-icon');
 const saveBtnTextEl = document.getElementById('save-btn-text');
+const closeConfirmModalBtn = document.getElementById('close-confirm-modal');
+const confirmItemsCountEl = document.getElementById('confirm-purchase-items-count');
+const confirmTotalEl = document.getElementById('confirm-purchase-total');
+const btnDoSavePurchase = document.getElementById('btn-do-save-purchase');
+const btnCancelSavePurchase = document.getElementById('btn-cancel-save-purchase');
+
+// Sub-elementos del overlay de cámara (reposo y apagado)
+const camPausedIconEl = document.getElementById('camera-paused-icon');
+const camPausedTitleEl = document.getElementById('camera-paused-title');
+const camPausedSubtitleEl = document.getElementById('camera-paused-subtitle');
 
 // Formulario de Alta de Nuevo Producto (404)
 const formAddProductEl = document.getElementById('form-add-product');
@@ -198,6 +208,7 @@ function renderCart() {
  */
 async function handleBarcodeDetected(barcode, detectedPrice = null) {
   if (!barcode) return;
+  if (typeof resetInactivityTimer === 'function') resetInactivityTimer();
 
   try {
     // 1. Consultamos la API en Spring Boot
@@ -469,9 +480,11 @@ document.addEventListener('click', (e) => {
 });
 
 // =========================================================================
-// 8. EVENTOS: GUARDAR COMPRA (FINALIZAR EN CAJA)
+// 8. EVENTOS: GUARDAR COMPRA (CON MODAL DE CONFIRMACIÓN Y PREVENCIÓN DE ACCIDENTES)
 // =========================================================================
-savePurchaseBtn?.addEventListener('click', async () => {
+
+// Paso 1: Pulsar el botón inferior "Guardar compra" -> Abre el modal de confirmación
+savePurchaseBtn?.addEventListener('click', () => {
   const items = getCartItems();
 
   if (items.length === 0) {
@@ -479,7 +492,37 @@ savePurchaseBtn?.addEventListener('click', async () => {
     return;
   }
 
+  // Actualizar datos del modal con el resumen en tiempo real
+  const totalUnits = items.reduce((acc, i) => acc + i.quantity, 0);
+  const totalAmount = calculateTotal();
+
+  if (confirmItemsCountEl) {
+    confirmItemsCountEl.textContent = `${items.length} ${items.length === 1 ? 'producto' : 'productos'} (${totalUnits} uds)`;
+  }
+  if (confirmTotalEl) {
+    confirmTotalEl.textContent = formatEur(totalAmount);
+  }
+
+  // Abrir modal de confirmación seguro
+  openModal('panel-confirm-purchase');
+});
+
+// Paso 2: Botones para cancelar o cerrar el modal de confirmación sin tocar la cesta
+closeConfirmModalBtn?.addEventListener('click', closeAllModals);
+btnCancelSavePurchase?.addEventListener('click', closeAllModals);
+
+// Paso 3: Confirmación consciente del usuario -> Ejecutar guardado en backend y Supabase
+btnDoSavePurchase?.addEventListener('click', async () => {
+  const items = getCartItems();
+  if (items.length === 0) {
+    closeAllModals();
+    return;
+  }
+
+  closeAllModals();
+
   savePurchaseBtn.disabled = true;
+  btnDoSavePurchase.disabled = true;
   saveBtnIconEl.textContent = 'sync';
   saveBtnIconEl.classList.add('animate-spin');
   saveBtnTextEl.textContent = 'Guardando compra...';
@@ -508,7 +551,7 @@ savePurchaseBtn?.addEventListener('click', async () => {
       }))
     });
 
-    // Vaciar el carrito
+    // Vaciar el carrito tras confirmación
     clearCart();
     renderCart();
 
@@ -520,12 +563,14 @@ savePurchaseBtn?.addEventListener('click', async () => {
 
     setTimeout(() => {
       savePurchaseBtn.disabled = false;
+      btnDoSavePurchase.disabled = false;
       saveBtnIconEl.textContent = 'check_circle';
       saveBtnTextEl.textContent = 'Guardar compra';
     }, 2000);
   } catch (error) {
     showToast(`Error al guardar la compra: ${error.message}`, 'error');
     savePurchaseBtn.disabled = false;
+    btnDoSavePurchase.disabled = false;
     saveBtnIconEl.classList.remove('animate-spin');
     saveBtnIconEl.textContent = 'check_circle';
     saveBtnTextEl.textContent = 'Guardar compra';
@@ -834,10 +879,20 @@ shoppingItemsContainer?.addEventListener('click', (e) => {
 // =========================================================================
 // 11. CONTROLES DE LA CÁMARA Y LINTERNA
 // =========================================================================
+function resetCameraOverlayToOff() {
+  if (camPausedIconEl) camPausedIconEl.textContent = 'videocam_off';
+  if (camPausedTitleEl) camPausedTitleEl.textContent = 'Cámara apagada';
+  if (camPausedSubtitleEl) camPausedSubtitleEl.classList.add('hidden');
+}
+
 btnToggleCamera?.addEventListener('click', async () => {
   if (isScannerRunning()) {
     // Detiene por completo la cámara y libera el hardware para que otras apps (ej. lector nativo) puedan usarla
     await stopScanner();
+    if (inactivityTimer) clearTimeout(inactivityTimer);
+    isScannerInSleepMode = false;
+    resetCameraOverlayToOff();
+
     camIconEl.textContent = 'videocam_off';
     camIconEl.className = 'material-symbols-outlined text-[18px] text-on-surface-variant';
     camTextEl.textContent = 'Off';
@@ -868,6 +923,7 @@ btnToggleCamera?.addEventListener('click', async () => {
       }
     );
     if (ok) {
+      resetCameraOverlayToOff();
       camIconEl.textContent = 'videocam';
       camIconEl.className = 'material-symbols-outlined text-[18px] text-primary';
       camTextEl.textContent = 'On';
@@ -875,6 +931,7 @@ btnToggleCamera?.addEventListener('click', async () => {
       camOverlayEl.classList.add('opacity-0', 'pointer-events-none');
       camOverlayEl.classList.remove('opacity-100', 'pointer-events-auto');
       if (laserBeamEl) laserBeamEl.style.display = 'flex';
+      resetInactivityTimer();
       showToast('Cámara activada (On)', 'videocam');
     }
   }
@@ -900,7 +957,115 @@ btnToggleTorch?.addEventListener('click', async () => {
 });
 
 // =========================================================================
-// 12. APERTURA DE MODALES DESDE EL HEADER
+// 12. GESTIÓN EFICIENTE DE BATERÍA (SUSPENSIÓN EN SEGUNDO PLANO E INACTIVIDAD)
+// =========================================================================
+let wasScannerActiveBeforeHide = false;
+let inactivityTimer = null;
+let isScannerInSleepMode = false;
+const INACTIVITY_TIMEOUT_MS = 120000; // 2 minutos sin actividad
+
+/**
+ * Pone la cámara en modo reposo para ahorrar batería tras inactividad prolongada.
+ */
+function enterCameraSleepMode() {
+  if (isScannerRunning() && !isCameraPaused()) {
+    isScannerInSleepMode = true;
+    pauseScanner();
+
+    if (camPausedIconEl) camPausedIconEl.textContent = 'bedtime';
+    if (camPausedTitleEl) camPausedTitleEl.textContent = 'Cámara en reposo';
+    if (camPausedSubtitleEl) {
+      camPausedSubtitleEl.textContent = 'Ahorro de batería • Toca para reactivar';
+      camPausedSubtitleEl.classList.remove('hidden');
+    }
+    camOverlayEl.classList.remove('opacity-0', 'pointer-events-none');
+    camOverlayEl.classList.add('opacity-100', 'pointer-events-auto');
+
+    if (camIconEl) {
+      camIconEl.textContent = 'bedtime';
+      camIconEl.className = 'material-symbols-outlined text-[18px] text-amber-500';
+    }
+    if (camTextEl) camTextEl.textContent = 'Reposo';
+    if (camDotEl) camDotEl.className = 'w-2 h-2 rounded-full bg-amber-400';
+    if (laserBeamEl) laserBeamEl.style.display = 'none';
+
+    showToast('Cámara en reposo para ahorrar batería', 'bedtime');
+  }
+}
+
+/**
+ * Despierta la cámara del modo reposo de batería.
+ */
+function wakeUpCameraFromSleep() {
+  if (!isScannerInSleepMode) return;
+  isScannerInSleepMode = false;
+  resumeScanner();
+
+  resetCameraOverlayToOff();
+  camOverlayEl.classList.add('opacity-0', 'pointer-events-none');
+  camOverlayEl.classList.remove('opacity-100', 'pointer-events-auto');
+
+  if (camIconEl) {
+    camIconEl.textContent = 'videocam';
+    camIconEl.className = 'material-symbols-outlined text-[18px] text-primary';
+  }
+  if (camTextEl) camTextEl.textContent = 'On';
+  if (camDotEl) camDotEl.className = 'w-2 h-2 rounded-full bg-primary animate-pulse';
+  if (laserBeamEl) laserBeamEl.style.display = 'flex';
+
+  resetInactivityTimer();
+  showToast('Cámara reactivada', 'videocam');
+}
+
+/**
+ * Reinicia el temporizador de inactividad ante cualquier toque o escaneo.
+ */
+function resetInactivityTimer() {
+  if (inactivityTimer) clearTimeout(inactivityTimer);
+  if (isScannerRunning() && !isCameraPaused()) {
+    inactivityTimer = setTimeout(enterCameraSleepMode, INACTIVITY_TIMEOUT_MS);
+  }
+}
+
+// Reactivar la cámara si el usuario toca la capa oscura de reposo
+camOverlayEl?.addEventListener('click', () => {
+  if (isScannerInSleepMode) {
+    wakeUpCameraFromSleep();
+  }
+});
+
+// Registrar interacciones en la app para reiniciar el tiempo de reposo
+['click', 'touchstart', 'scroll'].forEach(evt => {
+  window.addEventListener(evt, () => {
+    if (isScannerInSleepMode) {
+      wakeUpCameraFromSleep();
+    } else {
+      resetInactivityTimer();
+    }
+  }, { passive: true });
+});
+
+// Page Visibility API: apagar inmediatamente la cámara si la pantalla se bloquea o la app pasa a segundo plano
+document.addEventListener('visibilitychange', () => {
+  if (document.hidden) {
+    // Si la pantalla se apagó o el usuario cambió de app -> pausar cámara inmediatamente
+    if (isScannerRunning() && !isCameraPaused()) {
+      wasScannerActiveBeforeHide = true;
+      pauseScanner();
+    }
+    if (inactivityTimer) clearTimeout(inactivityTimer);
+  } else {
+    // Si el usuario regresa a la app y la cámara estaba activa -> reanudar
+    if (wasScannerActiveBeforeHide) {
+      wasScannerActiveBeforeHide = false;
+      resumeScanner();
+    }
+    resetInactivityTimer();
+  }
+});
+
+// =========================================================================
+// 13. APERTURA DE MODALES DESDE EL HEADER
 // =========================================================================
 document.getElementById('header-btn-list')?.addEventListener('click', () => {
   renderShoppingListDrawer();
@@ -995,7 +1160,11 @@ async function initApp() {
       console.warn('[Scanner] Aviso de cámara:', err.message);
       showToast('Cámara en modo manual. Puedes escribir el código arriba.', 'info');
     }
-  );
+  ).then((ok) => {
+    if (ok) {
+      resetInactivityTimer();
+    }
+  });
 }
 
 // Arrancamos en cuanto el DOM esté listo

@@ -93,10 +93,11 @@
           <!-- Capa de brillo cuando la linterna está encendida -->
           <div id="torch-ambient" class="absolute inset-0 bg-amber-200/20 mix-blend-screen opacity-0 transition-opacity duration-300 pointer-events-none"></div>
 
-          <!-- Overlay cuando la cámara está apagada manualmente -->
-          <div id="camera-paused-overlay" class="absolute inset-0 bg-inverse-surface/90 flex flex-col items-center justify-center gap-2 opacity-0 pointer-events-none transition-opacity duration-300 z-20">
-            <span class="material-symbols-outlined text-outline-variant text-[36px]">videocam_off</span>
-            <span class="font-headline-sm text-sm text-inverse-on-surface font-semibold tracking-wide">Cámara apagada</span>
+          <!-- Overlay cuando la cámara está apagada manualmente o en reposo de batería -->
+          <div id="camera-paused-overlay" class="absolute inset-0 bg-inverse-surface/90 flex flex-col items-center justify-center gap-2 opacity-0 pointer-events-none transition-opacity duration-300 z-20 cursor-pointer">
+            <span id="camera-paused-icon" class="material-symbols-outlined text-outline-variant text-[36px]">videocam_off</span>
+            <span id="camera-paused-title" class="font-headline-sm text-sm text-inverse-on-surface font-semibold tracking-wide">Cámara apagada</span>
+            <span id="camera-paused-subtitle" class="text-[11px] text-outline hidden">Toca para reactivar</span>
           </div>
 
         </div>
@@ -423,6 +424,56 @@
           </button>
         </div>
       </form>
+
+    </div>
+
+    <!-- MODAL 6: CONFIRMAR FINALIZACIÓN DE COMPRA (PREVENCIÓN DE ACCIDENTES) -->
+    <div id="panel-confirm-purchase" data-drawer-panel class="absolute inset-x-0 bottom-0 max-h-[85vh] rounded-t-3xl bg-surface p-space-md shadow-2xl flex flex-col gap-4 transition-transform duration-300 translate-y-full border-t border-primary/20">
+      
+      <div class="flex items-center justify-between border-b border-surface-container-high pb-2">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center">
+            <span class="material-symbols-outlined text-[20px]">receipt_long</span>
+          </div>
+          <div>
+            <span class="font-headline-sm text-headline-sm text-on-surface font-bold">¿Finalizar y Guardar Compra?</span>
+            <p class="text-[11px] text-on-surface-variant leading-none mt-0.5">Revisa el resumen antes de registrar el tiquet</p>
+          </div>
+        </div>
+        <button id="close-confirm-modal" type="button" aria-label="Cerrar ventana" class="btn-tactile w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-container text-on-surface-variant">
+          <span class="material-symbols-outlined text-[20px]">close</span>
+        </button>
+      </div>
+
+      <!-- Resumen visual de la cesta -->
+      <div class="p-4 rounded-2xl bg-surface-container-low border border-surface-container-high/80 flex flex-col gap-2.5">
+        <div class="flex items-center justify-between text-body-md text-on-surface-variant">
+          <span>Artículos en la cesta:</span>
+          <span id="confirm-purchase-items-count" class="font-bold text-on-surface">0 productos (0 uds)</span>
+        </div>
+        <div class="flex items-center justify-between pt-2 border-t border-surface-container">
+          <span class="font-headline-sm font-semibold text-on-surface text-[16px]">Total a pagar:</span>
+          <span id="confirm-purchase-total" class="font-headline-lg-mobile text-2xl font-bold text-primary">0,00 €</span>
+        </div>
+      </div>
+
+      <!-- Aviso explicativo -->
+      <p class="text-[12px] text-on-surface-variant flex items-center gap-1.5 px-1 text-center justify-center">
+        <span class="material-symbols-outlined text-[16px] text-amber-600 shrink-0">info</span>
+        <span>Al confirmar, la compra se guardará en tu historial y se vaciará el carrito actual.</span>
+      </p>
+
+      <!-- Botones de Acción -->
+      <div class="flex flex-col gap-2 pt-1">
+        <button id="btn-do-save-purchase" type="button" class="btn-tactile w-full h-12 px-6 rounded-full bg-primary hover:bg-primary-container text-on-primary font-label-lg font-semibold flex items-center justify-center gap-2 shadow-md transition-all cursor-pointer">
+          <span class="material-symbols-outlined text-[20px]">check_circle</span>
+          <span>Sí, guardar compra</span>
+        </button>
+
+        <button id="btn-cancel-save-purchase" type="button" class="btn-tactile w-full h-11 px-6 rounded-full bg-surface-container hover:bg-surface-container-high text-on-surface font-label-md font-semibold flex items-center justify-center transition-all cursor-pointer">
+          Seguir comprando
+        </button>
+      </div>
 
     </div>
 

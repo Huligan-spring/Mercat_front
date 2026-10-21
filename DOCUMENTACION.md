@@ -225,6 +225,7 @@ El proyecto se estructura en módulos especializados para mantener una arquitect
    - Decodifica códigos QR dinámicos de Mercadona (GS1 Digital Link para productos de peso variable en carne/pescado), extrayendo el GTIN y el precio inyectado.
    - Incorpora protección anti-duplicados: pausa inmediata al detectar el producto, reanudación automática tras 1.8 segundos y tiempo de enfriamiento de 3.5 segundos para evitar lecturas repetidas si el usuario mantiene el producto frente a la cámara.
    - Proporciona control de encendido/apagado con liberación completa del hardware de la cámara (`stopScanner`), permitiendo que el usuario alterne sin conflicto hacia lectores de códigos nativos de Android.
+   - Optimización integral de batería: opera a 10 FPS eficientes (ahorrando un 50% de CPU), suspensión automática cuando la pantalla se apaga o la app pasa a segundo plano (Page Visibility API), y reposo tras 2 minutos de inactividad.
    - Proporciona control de linterna (*torch*) y feedback sensorial sutil (*Beep* sintético Web Audio y vibración háptica).
 3. **`src/js/cart.js`:**
    - Gestiona el array de productos de la compra activa.
@@ -239,6 +240,7 @@ El proyecto se estructura en módulos especializados para mantener una arquitect
    - Gestiona la ventana modal centrada de producto reconocido (`showScannedProductModal`), mostrando el nombre, precio destacado en grande, icono de confirmación y temporizador visual animado que reanuda el escáner automáticamente.
 6. **`src/main.js`:**
    - Conecta todos los módulos anteriores, gestiona los eventos de usuario y arranca la aplicación.
+   - Implementa el modal de confirmación de fin de compra (`panel-confirm-purchase`), previniendo pulsaciones accidentales mediante revisión previa de artículos, importe total y confirmación explícita antes de vaciar la cesta.
    - Administra el historial de compras interactivo con visualización desplegable de tiquets completos (artículos, cantidades, precios unitarios, subtotales, fecha/hora y opción de recargar la compra en la cesta).
 
 ---

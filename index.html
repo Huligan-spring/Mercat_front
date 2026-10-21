@@ -446,14 +446,18 @@
       </div>
 
       <!-- Resumen visual de la cesta -->
-      <div class="p-4 rounded-2xl bg-surface-container-low border border-surface-container-high/80 flex flex-col gap-2.5">
-        <div class="flex items-center justify-between text-body-md text-on-surface-variant">
-          <span>Artículos en la cesta:</span>
-          <span id="confirm-purchase-items-count" class="font-bold text-on-surface">0 productos (0 uds)</span>
+      <div class="p-4 rounded-2xl bg-surface-container-low border border-surface-container-high/80 flex flex-col gap-3">
+        <div class="flex items-center justify-between gap-3 text-body-md">
+          <span class="text-on-surface-variant text-[14px] font-medium whitespace-nowrap">Productos en cesta</span>
+          <span id="confirm-purchase-items-count" class="font-bold text-on-surface text-[13px] whitespace-nowrap bg-surface-container-lowest px-3 py-1 rounded-full border border-surface-container-high/60 shadow-xs">
+            0 productos (0 uds)
+          </span>
         </div>
-        <div class="flex items-center justify-between pt-2 border-t border-surface-container">
-          <span class="font-headline-sm font-semibold text-on-surface text-[16px]">Total a pagar:</span>
-          <span id="confirm-purchase-total" class="font-headline-lg-mobile text-2xl font-bold text-primary">0,00 €</span>
+        <div class="flex items-center justify-between gap-3 pt-2.5 border-t border-surface-container">
+          <span class="font-semibold text-on-surface text-[15px] whitespace-nowrap">Total a pagar</span>
+          <span id="confirm-purchase-total" class="font-headline-lg-mobile text-2xl font-extrabold text-emerald-700 whitespace-nowrap">
+            0,00 €
+          </span>
         </div>
       </div>
 

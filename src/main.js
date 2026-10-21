@@ -497,7 +497,11 @@ savePurchaseBtn?.addEventListener('click', () => {
   const totalAmount = calculateTotal();
 
   if (confirmItemsCountEl) {
-    confirmItemsCountEl.textContent = `${items.length} ${items.length === 1 ? 'producto' : 'productos'} (${totalUnits} uds)`;
+    if (totalUnits === items.length) {
+      confirmItemsCountEl.textContent = `${items.length} ${items.length === 1 ? 'producto' : 'productos'}`;
+    } else {
+      confirmItemsCountEl.textContent = `${items.length} ${items.length === 1 ? 'producto' : 'productos'} (${totalUnits} uds)`;
+    }
   }
   if (confirmTotalEl) {
     confirmTotalEl.textContent = formatEur(totalAmount);

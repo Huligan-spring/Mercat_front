@@ -1319,8 +1319,22 @@ formAuthLogin?.addEventListener('submit', async (e) => {
   }
   hideAuthFeedback();
 
+  // Temporizadores dinámicos para guiar al usuario si Render está en arranque en frío
+  const timerColdStart1 = setTimeout(() => {
+    if (submitLoginText) submitLoginText.textContent = 'Despertando servidor en la nube...';
+  }, 2500);
+
+  const timerColdStart2 = setTimeout(() => {
+    if (submitLoginText) submitLoginText.textContent = 'Conectando (casi listo)...';
+  }, 7000);
+
   try {
-    const authData = await loginUser(email, password);
+    const authData = await loginUser(email, password, (notice) => {
+      if (submitLoginText) submitLoginText.textContent = notice;
+    });
+    clearTimeout(timerColdStart1);
+    clearTimeout(timerColdStart2);
+
     setSession(authData);
     updateAuthUI();
     closeAllModals();
@@ -1333,8 +1347,12 @@ formAuthLogin?.addEventListener('submit', async (e) => {
     // Reanudar acción Just-In-Time si existía
     handlePendingAuthAction();
   } catch (err) {
+    clearTimeout(timerColdStart1);
+    clearTimeout(timerColdStart2);
     showAuthFeedback(err.message || 'Error al iniciar sesión. Revisa tus credenciales.');
   } finally {
+    clearTimeout(timerColdStart1);
+    clearTimeout(timerColdStart2);
     if (submitLoginBtn && submitLoginText) {
       submitLoginBtn.disabled = false;
       submitLoginText.textContent = 'Entrar a mi cuenta';
@@ -1364,8 +1382,22 @@ formAuthRegister?.addEventListener('submit', async (e) => {
   }
   hideAuthFeedback();
 
+  // Temporizadores dinámicos para guiar al usuario si Render está en arranque en frío
+  const timerColdStart1 = setTimeout(() => {
+    if (submitRegisterText) submitRegisterText.textContent = 'Despertando servidor en la nube...';
+  }, 2500);
+
+  const timerColdStart2 = setTimeout(() => {
+    if (submitRegisterText) submitRegisterText.textContent = 'Conectando (casi listo)...';
+  }, 7000);
+
   try {
-    const authData = await registerUser(email, password);
+    const authData = await registerUser(email, password, (notice) => {
+      if (submitRegisterText) submitRegisterText.textContent = notice;
+    });
+    clearTimeout(timerColdStart1);
+    clearTimeout(timerColdStart2);
+
     setSession(authData);
     updateAuthUI();
     closeAllModals();
@@ -1375,8 +1407,12 @@ formAuthRegister?.addEventListener('submit', async (e) => {
     // Reanudar acción Just-In-Time si existía
     handlePendingAuthAction();
   } catch (err) {
+    clearTimeout(timerColdStart1);
+    clearTimeout(timerColdStart2);
     showAuthFeedback(err.message || 'Error al registrar la cuenta.');
   } finally {
+    clearTimeout(timerColdStart1);
+    clearTimeout(timerColdStart2);
     if (submitRegisterBtn && submitRegisterText) {
       submitRegisterBtn.disabled = false;
       submitRegisterText.textContent = 'Crear cuenta gratis';

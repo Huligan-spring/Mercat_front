@@ -17,26 +17,65 @@ import { secureFetch, isAdmin } from './auth.js';
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://mercat-backend-6mxo.onrender.com/api/v1';
 
 // =========================================================================
-// 1. AUTENTICACIÓN (LOGIN Y REGISTRO)
+// 1. AUTENTICACIÓN (LOGIN Y REGISTRO) Y RESILENCIA ANTE ARRANQUE EN FRÍO
 // =========================================================================
+
+/**
+ * Wrapper de red resiliente diseñado para el arranque en frío (Cold Start) de Render.
+ * En el plan gratuito de Render, el servidor se suspende tras 15 minutos sin uso.
+ * Si el primer intento falla por socket timeout o 'Failed to fetch', realiza un segundo
+ * intento automático tras 1,5 segundos, ya que para entonces el servidor habrá levantado.
+ * 
+ * @param {string} url URL del endpoint
+ * @param {RequestInit} options Opciones de fetch (método, cabeceras, body)
+ * @param {Function|null} onNotice Callback para notificar cambios de estado en la UI
+ * @returns {Promise<Response>}
+ */
+async function fetchWithColdStartRetry(url, options, onNotice = null) {
+  try {
+    return await fetch(url, options);
+  } catch (firstError) {
+    const isNetworkError = firstError.name === 'TypeError' ||
+      (firstError.message && (firstError.message.includes('fetch') || firstError.message.includes('network')));
+
+    if (!isNetworkError) {
+      throw firstError;
+    }
+
+    console.warn('[API] Primer intento falló por suspensión del servidor en Render. Reintentando...');
+    if (typeof onNotice === 'function') {
+      onNotice('El servidor estaba en reposo. Conectando de nuevo...');
+    }
+
+    // Pausa breve de 1.5s antes de reintentar
+    await new Promise(resolve => setTimeout(resolve, 1500));
+
+    try {
+      return await fetch(url, options);
+    } catch (secondError) {
+      throw new Error('El servidor en la nube estaba suspendido por inactividad y tardó en responder. Ya se ha reactivado; por favor, vuelve a pulsar para continuar.');
+    }
+  }
+}
 
 /**
  * Inicia sesión con correo electrónico y contraseña.
  * 
  * @param {string} email Correo electrónico
  * @param {string} password Contraseña en texto plano
+ * @param {Function|null} onNotice Callback para avisos de progreso (opcional)
  * @returns {Promise<{ token: string, email: string, role: string }>}
  */
-export async function loginUser(email, password) {
+export async function loginUser(email, password, onNotice = null) {
   try {
-    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+    const response = await fetchWithColdStartRetry(`${API_BASE_URL}/auth/login`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
       body: JSON.stringify({ email: email.trim(), password })
-    });
+    }, onNotice);
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -55,18 +94,19 @@ export async function loginUser(email, password) {
  * 
  * @param {string} email Correo electrónico único
  * @param {string} password Contraseña deseada (mínimo 6 caracteres)
+ * @param {Function|null} onNotice Callback para avisos de progreso (opcional)
  * @returns {Promise<{ token: string, email: string, role: string }>}
  */
-export async function registerUser(email, password) {
+export async function registerUser(email, password, onNotice = null) {
   try {
-    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+    const response = await fetchWithColdStartRetry(`${API_BASE_URL}/auth/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
       body: JSON.stringify({ email: email.trim(), password })
-    });
+    }, onNotice);
 
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({}));
@@ -87,7 +127,7 @@ export async function registerUser(email, password) {
 /**
  * Despierta la instancia de Render en segundo plano al abrir la aplicación.
  * El plan gratuito de Render pone en reposo el servidor tras 15 minutos sin uso.
- * Con esta llamada silenciosa conseguimos que esté listo antes de que el usuario escanee.
+ * Con esta llamada silenciosa a un endpoint público y ligero conseguimos que esté listo antes de que el usuario escanee.
  * 
  * @param {number} timeoutMs Tiempo máximo de espera antes de abortar el intento
  * @returns {Promise<boolean>} Devuelve true si el backend respondió con éxito (código 200)
@@ -97,13 +137,14 @@ export async function pingBackend(timeoutMs = 6000) {
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
 
   try {
-    const response = await fetch(`${API_BASE_URL}/products`, {
+    // Usamos el endpoint público de búsqueda que retorna 200 OK sin requerir token JWT
+    const response = await fetch(`${API_BASE_URL}/products/search?q=ping`, {
       method: 'GET',
       headers: { 'Accept': 'application/json' },
       signal: controller.signal
     });
     clearTimeout(timeoutId);
-    if (response.ok) {
+    if (response.ok || response.status === 200) {
       return true;
     }
   } catch (error) {

@@ -13,7 +13,8 @@
  */
 
 import './css/style.css';
-import { pingBackend, getProductByBarcode, createProduct, savePurchase, searchSuggestions } from './js/api.js';
+import { pingBackend, getProductByBarcode, createProduct, savePurchase, searchSuggestions, loginUser, registerUser, getMyPurchases } from './js/api.js';
+import { getAuthToken, getCurrentUser, isAuthenticated, isAdmin, setSession, clearSession } from './js/auth.js';
 import { startScanner, stopScanner, pauseScanner, resumeScanner, toggleTorch, isScannerRunning, isCameraPaused, resetLastScannedCode } from './js/scanner.js';
 import { loadCart, getCartItems, addProductToCart, incrementQuantity, decrementQuantity, removeProduct, clearCart, calculateTotal, formatEur } from './js/cart.js';
 import { getStoredBudget, saveBudget, evaluateBudget } from './js/budget.js';
@@ -105,6 +106,43 @@ const backendBannerEl = document.getElementById('backend-status-banner');
 const backendStatusTextEl = document.getElementById('backend-status-text');
 const backendStatusDotEl = document.getElementById('backend-status-dot');
 const closeBackendBannerBtn = document.getElementById('close-backend-banner');
+
+// Controles de Sesión y Perfil de Usuario (JWT)
+const headerBtnAuth = document.getElementById('header-btn-auth');
+const headerAuthIcon = document.getElementById('header-auth-icon');
+const headerAuthDot = document.getElementById('header-auth-dot');
+
+// Elementos del Modal de Autenticación
+const panelAuthEl = document.getElementById('panel-auth');
+const closeAuthModalBtn = document.getElementById('close-auth-modal');
+const authContextNoticeEl = document.getElementById('auth-context-notice');
+const authContextNoticeText = document.getElementById('auth-context-notice-text');
+const tabAuthLogin = document.getElementById('tab-auth-login');
+const tabAuthRegister = document.getElementById('tab-auth-register');
+const formAuthLogin = document.getElementById('form-auth-login');
+const formAuthRegister = document.getElementById('form-auth-register');
+const loginEmailInput = document.getElementById('login-email');
+const loginPasswordInput = document.getElementById('login-password');
+const registerEmailInput = document.getElementById('register-email');
+const registerPasswordInput = document.getElementById('register-password');
+const submitLoginBtn = document.getElementById('submit-login-btn');
+const submitLoginText = document.getElementById('submit-login-text');
+const submitRegisterBtn = document.getElementById('submit-register-btn');
+const submitRegisterText = document.getElementById('submit-register-text');
+const authFeedbackBox = document.getElementById('auth-feedback-box');
+const authFeedbackText = document.getElementById('auth-feedback-text');
+const authFeedbackIcon = document.getElementById('auth-feedback-icon');
+
+// Elementos del Modal de Perfil
+const panelUserEl = document.getElementById('panel-user');
+const closeUserModalBtn = document.getElementById('close-user-modal');
+const userProfileInitial = document.getElementById('user-profile-initial');
+const userProfileEmail = document.getElementById('user-profile-email');
+const userProfileRole = document.getElementById('user-profile-role');
+const btnUserLogout = document.getElementById('btn-user-logout');
+
+// Acción diferida Just-In-Time tras autenticación ('savePurchase' | 'createProduct')
+let pendingAuthAction = null;
 
 function hideBackendBanner() {
   if (backendBannerEl && !backendBannerEl.classList.contains('hidden')) {
@@ -264,6 +302,13 @@ formAddProductEl?.addEventListener('submit', async (e) => {
 
   if (!barcode || !name || isNaN(price) || price <= 0) {
     showToast('Por favor, introduce un nombre y precio válidos', 'warning');
+    return;
+  }
+
+  // Intercepción Just-In-Time: El backend requiere JWT para POST /api/v1/products
+  if (!isAuthenticated()) {
+    pendingAuthAction = 'createProduct';
+    openAuthModalWithNotice('Inicia sesión o regístrate para dar de alta este producto en tu catálogo personal.');
     return;
   }
 
@@ -489,6 +534,13 @@ savePurchaseBtn?.addEventListener('click', () => {
 
   if (items.length === 0) {
     showToast('Tu cesta está vacía. Escanea productos primero.', 'shopping_cart');
+    return;
+  }
+
+  // Intercepción Just-In-Time: si es invitado, pedir login antes de guardar
+  if (!isAuthenticated()) {
+    pendingAuthAction = 'savePurchase';
+    openAuthModalWithNotice('Inicia sesión o regístrate para guardar tu ticket en tu historial personal.');
     return;
   }
 
@@ -1078,18 +1130,326 @@ document.getElementById('header-btn-list')?.addEventListener('click', () => {
 document.getElementById('header-btn-history')?.addEventListener('click', () => {
   renderHistoryDrawer();
   openModal('panel-history');
+  syncRemotePurchasesInBackground();
 });
 document.getElementById('header-btn-guide')?.addEventListener('click', () => openModal('panel-guide'));
 document.getElementById('header-btn-profile')?.addEventListener('click', () => openModal('panel-profile'));
+
+// Botón de autenticación / perfil de usuario
+headerBtnAuth?.addEventListener('click', () => {
+  if (isAuthenticated()) {
+    updateUserProfileDrawer();
+    openModal('panel-user');
+  } else {
+    openAuthModalWithNotice();
+  }
+});
 
 // Botones de cierre
 document.getElementById('close-list-modal')?.addEventListener('click', closeAllModals);
 document.getElementById('close-history-modal')?.addEventListener('click', closeAllModals);
 document.getElementById('close-guide-modal')?.addEventListener('click', closeAllModals);
 document.getElementById('close-profile-modal')?.addEventListener('click', closeAllModals);
+closeAuthModalBtn?.addEventListener('click', closeAllModals);
+closeUserModalBtn?.addEventListener('click', closeAllModals);
 
 // =========================================================================
-// 13. INICIALIZACIÓN DE LA APLICACIÓN (BOOTSTRAP)
+// 14. AUTENTICACIÓN, GESTIÓN DE SESIÓN Y SINCRONIZACIÓN EN LA NUBE (JWT)
+// =========================================================================
+
+/**
+ * Actualiza el icono y estado visual del botón de cuenta en el header.
+ */
+function updateAuthUI() {
+  const user = getCurrentUser();
+  const logged = isAuthenticated();
+
+  if (logged && user) {
+    if (headerAuthIcon) {
+      headerAuthIcon.textContent = 'account_circle';
+      headerAuthIcon.classList.add('text-primary');
+    }
+    if (headerAuthDot) {
+      headerAuthDot.classList.remove('hidden');
+    }
+    if (headerBtnAuth) {
+      headerBtnAuth.setAttribute('title', `${user.email} (${isAdmin() ? 'Admin' : 'Usuario'})`);
+    }
+  } else {
+    if (headerAuthIcon) {
+      headerAuthIcon.textContent = 'person_outline';
+      headerAuthIcon.classList.remove('text-primary');
+    }
+    if (headerAuthDot) {
+      headerAuthDot.classList.add('hidden');
+    }
+    if (headerBtnAuth) {
+      headerBtnAuth.setAttribute('title', 'Iniciar sesión');
+    }
+  }
+}
+
+/**
+ * Rellena los datos del cajón del perfil del usuario autenticado.
+ */
+function updateUserProfileDrawer() {
+  const user = getCurrentUser();
+  if (!user) return;
+
+  if (userProfileEmail) {
+    userProfileEmail.textContent = user.email || 'Usuario';
+  }
+  if (userProfileInitial) {
+    userProfileInitial.textContent = (user.email ? user.email.charAt(0).toUpperCase() : 'U');
+  }
+  if (userProfileRole) {
+    if (isAdmin()) {
+      userProfileRole.textContent = 'ADMINISTRADOR';
+      userProfileRole.className = 'px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-purple-100 text-purple-800 shrink-0';
+    } else {
+      userProfileRole.textContent = 'USUARIO';
+      userProfileRole.className = 'px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 shrink-0';
+    }
+  }
+}
+
+/**
+ * Abre el modal de autenticación con un mensaje explicativo contextual (Just-In-Time).
+ * 
+ * @param {string|null} noticeText Texto explicativo o null si se abre por decisión manual
+ */
+function openAuthModalWithNotice(noticeText = null) {
+  if (authContextNoticeEl && authContextNoticeText) {
+    if (noticeText) {
+      authContextNoticeText.textContent = noticeText;
+      authContextNoticeEl.classList.remove('hidden');
+    } else {
+      authContextNoticeEl.classList.add('hidden');
+    }
+  }
+  hideAuthFeedback();
+  openModal('panel-auth');
+}
+
+/**
+ * Muestra un aviso en el formulario de login/registro.
+ */
+function showAuthFeedback(msg, isError = true) {
+  if (!authFeedbackBox || !authFeedbackText || !authFeedbackIcon) return;
+  authFeedbackBox.classList.remove('hidden');
+  if (isError) {
+    authFeedbackBox.className = 'p-2.5 rounded-xl text-[12px] font-medium flex items-center gap-2 bg-red-50 text-red-700 border border-red-200';
+    authFeedbackIcon.textContent = 'error';
+  } else {
+    authFeedbackBox.className = 'p-2.5 rounded-xl text-[12px] font-medium flex items-center gap-2 bg-emerald-50 text-emerald-700 border border-emerald-200';
+    authFeedbackIcon.textContent = 'check_circle';
+  }
+  authFeedbackText.textContent = msg;
+}
+
+/**
+ * Oculta la caja de feedback del formulario auth.
+ */
+function hideAuthFeedback() {
+  if (authFeedbackBox) {
+    authFeedbackBox.classList.add('hidden');
+  }
+}
+
+/**
+ * Reanuda la acción diferida que fue interceptada por falta de autenticación.
+ */
+function handlePendingAuthAction() {
+  if (!pendingAuthAction) return;
+
+  const action = pendingAuthAction;
+  pendingAuthAction = null;
+
+  if (action === 'savePurchase') {
+    const items = getCartItems();
+    if (items.length > 0) {
+      const totalUnits = items.reduce((acc, i) => acc + i.quantity, 0);
+      const totalAmount = calculateTotal();
+      if (confirmItemsCountEl) {
+        confirmItemsCountEl.textContent = totalUnits === items.length
+          ? `${items.length} ${items.length === 1 ? 'producto' : 'productos'}`
+          : `${items.length} ${items.length === 1 ? 'producto' : 'productos'} (${totalUnits} uds)`;
+      }
+      if (confirmTotalEl) {
+        confirmTotalEl.textContent = formatEur(totalAmount);
+      }
+      openModal('panel-confirm-purchase');
+    }
+  } else if (action === 'createProduct') {
+    openModal('panel-add-product');
+  }
+}
+
+// Alternar pestañas entre Iniciar Sesión y Crear Cuenta
+tabAuthLogin?.addEventListener('click', () => {
+  tabAuthLogin.className = 'flex-1 py-2 text-center text-[13px] font-bold rounded-lg bg-surface-container-lowest text-primary shadow-xs transition-all';
+  tabAuthRegister.className = 'flex-1 py-2 text-center text-[13px] font-semibold rounded-lg text-on-surface-variant hover:text-on-surface transition-all';
+  formAuthLogin?.classList.remove('hidden');
+  formAuthRegister?.classList.add('hidden');
+  hideAuthFeedback();
+});
+
+tabAuthRegister?.addEventListener('click', () => {
+  tabAuthRegister.className = 'flex-1 py-2 text-center text-[13px] font-bold rounded-lg bg-surface-container-lowest text-primary shadow-xs transition-all';
+  tabAuthLogin.className = 'flex-1 py-2 text-center text-[13px] font-semibold rounded-lg text-on-surface-variant hover:text-on-surface transition-all';
+  formAuthRegister?.classList.remove('hidden');
+  formAuthLogin?.classList.add('hidden');
+  hideAuthFeedback();
+});
+
+// Envío del formulario de Iniciar Sesión
+formAuthLogin?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = loginEmailInput?.value.trim();
+  const password = loginPasswordInput?.value;
+
+  if (!email || !password) {
+    showAuthFeedback('Por favor, completa todos los campos.');
+    return;
+  }
+
+  if (submitLoginBtn && submitLoginText) {
+    submitLoginBtn.disabled = true;
+    submitLoginText.textContent = 'Iniciando sesión...';
+  }
+  hideAuthFeedback();
+
+  try {
+    const authData = await loginUser(email, password);
+    setSession(authData);
+    updateAuthUI();
+    closeAllModals();
+    showToast(`¡Bienvenido de nuevo, ${authData.email}!`, 'login');
+    if (loginPasswordInput) loginPasswordInput.value = '';
+
+    // Sincronizar historial remoto
+    syncRemotePurchasesInBackground();
+
+    // Reanudar acción Just-In-Time si existía
+    handlePendingAuthAction();
+  } catch (err) {
+    showAuthFeedback(err.message || 'Error al iniciar sesión. Revisa tus credenciales.');
+  } finally {
+    if (submitLoginBtn && submitLoginText) {
+      submitLoginBtn.disabled = false;
+      submitLoginText.textContent = 'Entrar a mi cuenta';
+    }
+  }
+});
+
+// Envío del formulario de Registro
+formAuthRegister?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+  const email = registerEmailInput?.value.trim();
+  const password = registerPasswordInput?.value;
+
+  if (!email || !password) {
+    showAuthFeedback('Por favor, completa todos los campos.');
+    return;
+  }
+
+  if (password.length < 6) {
+    showAuthFeedback('La contraseña debe tener al menos 6 caracteres.');
+    return;
+  }
+
+  if (submitRegisterBtn && submitRegisterText) {
+    submitRegisterBtn.disabled = true;
+    submitRegisterText.textContent = 'Creando cuenta...';
+  }
+  hideAuthFeedback();
+
+  try {
+    const authData = await registerUser(email, password);
+    setSession(authData);
+    updateAuthUI();
+    closeAllModals();
+    showToast('¡Cuenta creada y sesión iniciada!', 'task_alt');
+    if (registerPasswordInput) registerPasswordInput.value = '';
+
+    // Reanudar acción Just-In-Time si existía
+    handlePendingAuthAction();
+  } catch (err) {
+    showAuthFeedback(err.message || 'Error al registrar la cuenta.');
+  } finally {
+    if (submitRegisterBtn && submitRegisterText) {
+      submitRegisterBtn.disabled = false;
+      submitRegisterText.textContent = 'Crear cuenta gratis';
+    }
+  }
+});
+
+// Botón de Cerrar Sesión
+btnUserLogout?.addEventListener('click', () => {
+  clearSession();
+  updateAuthUI();
+  closeAllModals();
+  showToast('Sesión cerrada correctamente', 'logout');
+});
+
+// Escuchar evento global de expiración de sesión (JWT 401 interceptado en secureFetch)
+window.addEventListener('mercat:session-expired', () => {
+  updateAuthUI();
+  closeAllModals();
+  openAuthModalWithNotice('Tu sesión ha expirado por seguridad. Por favor, identifícate de nuevo.');
+});
+
+// Sincronización en segundo plano del historial remoto de Supabase a través de Render
+async function syncRemotePurchasesInBackground() {
+  if (!isAuthenticated() || !navigator.onLine) return;
+
+  try {
+    const remotePurchases = await getMyPurchases();
+    if (!Array.isArray(remotePurchases)) return;
+
+    const localList = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    const mapById = new Map();
+
+    // 1. Guardar primero los remotos mapeados
+    remotePurchases.forEach(p => {
+      const pItems = Array.isArray(p.items) ? p.items : [];
+      mapById.set(p.id, {
+        id: p.id,
+        date: p.purchasedAt
+          ? new Date(p.purchasedAt).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+          : new Date().toLocaleDateString('es-ES'),
+        total: p.total,
+        itemCount: pItems.reduce((acc, i) => acc + (i.quantity || 1), 0),
+        items: pItems.map(i => ({
+          id: i.product?.id || i.id,
+          name: i.productName || i.product?.name || 'Artículo',
+          price: i.unitPrice || i.product?.price || 0,
+          quantity: i.quantity || 1,
+          barcode: i.product?.barcode || ''
+        }))
+      });
+    });
+
+    // 2. Si hay compras locales que no están en el mapa remoto, conservarlas
+    localList.forEach(loc => {
+      if (!mapById.has(loc.id)) {
+        mapById.set(loc.id, loc);
+      }
+    });
+
+    // 3. Convertir de nuevo a array ordenado por id descendente
+    const mergedList = Array.from(mapById.values()).sort((a, b) => (b.id || 0) - (a.id || 0)).slice(0, 30);
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(mergedList));
+
+    // Si el drawer de historial está abierto o presente, actualizar vista
+    renderHistoryDrawer();
+  } catch (err) {
+    console.warn('[Sync] Fallo al sincronizar historial con Render:', err.message);
+  }
+}
+
+// =========================================================================
+// 15. INICIALIZACIÓN DE LA APLICACIÓN (BOOTSTRAP)
 // =========================================================================
 async function initApp() {
   console.log('[Mercat] Inicializando Mercat Asistent...');
@@ -1105,10 +1465,16 @@ async function initApp() {
   loadCart();
   renderCart();
 
-  // 4. Registrar Service Worker
+  // 4. Actualizar estado visual de sesión (JWT) y sincronizar compras remotas
+  updateAuthUI();
+  if (isAuthenticated()) {
+    syncRemotePurchasesInBackground();
+  }
+
+  // 5. Registrar Service Worker
   registerServiceWorker();
 
-  // 5. Ping en segundo plano a Render con control inteligente de aviso
+  // 6. Ping en segundo plano a Render con control inteligente de aviso
   let isConnected = false;
 
   // Solo mostramos el aviso si tras 1.5s el servidor aún no ha respondido.
@@ -1153,7 +1519,7 @@ async function initApp() {
     }
   });
 
-  // 6. Arrancar la cámara del escáner
+  // 7. Arrancar la cámara del escáner
   const scannerContainer = 'interactive-scanner';
   startScanner(
     scannerContainer,

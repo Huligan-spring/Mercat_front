@@ -96,14 +96,15 @@ Mercat_front/
 │   ├── css/
 │   │   └── style.css          # Estilos Tailwind + animaciones didácticas
 │   ├── js/
-│   │   ├── api.js             # Todas las peticiones HTTP (fetch) al backend
+│   │   ├── auth.js            # Gestión de sesión JWT, tokens y wrapper secureFetch
+│   │   ├── api.js             # Peticiones HTTP a la API REST (Spring Boot)
 │   │   ├── scanner.js         # Lógica de la cámara, linterna y lectura EAN
 │   │   ├── cart.js            # Estado de la cesta, cálculo de totales
 │   │   ├── budget.js          # Control de presupuesto y semáforos de color
 │   │   └── modals.js          # Control de paneles deslizables (Drawers)
 │   └── main.js                # Orquestador principal (conecta todo)
 ├── .env                       # Variables de entorno (URL del backend)
-├── index.html                 # Maqueta visual principal
+├── index.html                 # Maqueta visual principal y paneles deslizables
 ├── tailwind.config.js         # Paleta de colores corporativos y espaciados
 ├── vite.config.js             # Configuración del empaquetador Vite
 └── package.json               # Dependencias y scripts de ejecución
@@ -214,49 +215,62 @@ sequenceDiagram
 
 ## 6. Módulos JavaScript de la Aplicación
 
-El proyecto se estructura en módulos especializados para mantener una arquitectura limpia y desacoplada:
+El proyecto se estructura en módulos especializados para mantener una arquitectura limpia, robusta y desacoplada:
 
-1. **`src/js/api.js`:**
-   - Contiene las funciones `fetch` que se comunican con el backend.
-   - Incluye la función `pingBackend(timeoutMs)`, que envía una petición ligera con límite de tiempo (`AbortController`) para verificar y despertar la instancia en segundo plano. Si el servidor responde rápidamente, la app evita mostrar avisos innecesarios al usuario.
-2. **`src/js/scanner.js`:**
+1. **`src/js/auth.js` (Módulo de Autenticación y Seguridad JWT):**
+   - Centraliza el ciclo de vida de la sesión de usuario en el frontend (`mercat_jwt_token` y `mercat_user_data` en `localStorage`).
+   - Expone funciones utilitarias: `getAuthToken()`, `getCurrentUser()`, `isAuthenticated()`, `isAdmin()` (comprueba `ROLE_ADMIN` frente a `ROLE_USER`), `setSession(authData)` y `clearSession()`.
+   - Proporciona el wrapper de red **`secureFetch(url, options)`**:
+     - Inyecta automáticamente la cabecera `Authorization: Bearer <token>` cuando el usuario ha iniciado sesión.
+     - Intercepta respuestas `HTTP 401 Unauthorized` (token expirado o manipulado), limpia la sesión y dispara el evento global `mercat:session-expired` para notificar al usuario y solicitar reautenticación sin bloquear la aplicación.
+2. **`src/js/api.js` (Cliente HTTP REST):**
+   - Consume los endpoints de Spring Boot utilizando `secureFetch` para peticiones protegidas e híbridas.
+   - Incluye funciones de autenticación: `loginUser(email, password)` y `registerUser(email, password)`.
+   - Incluye consulta de historial privado en la nube: `getMyPurchases()`.
+   - Adapta `createProduct`: envía `{ barcode, name, price, makeGlobal: isAdmin() }`, garantizando que administradores puedan poblar el Catálogo Maestro y usuarios estándar creen su versión personalizada.
+   - Mantiene la función de salud `pingBackend(timeoutMs)` para comprobar y despertar la instancia de Render en segundo plano.
+3. **`src/js/scanner.js` (Motor de Cámara y Visor Óptico):**
    - Controla la cámara y la decodificación omnidireccional en tiempo real mediante `html5-qrcode`.
-   - Implementa encuadre cuadrado (`aspectRatio: 1.0`) y ventana de lectura simétrica (`qrbox: 260x260`) con motor ZXing enfocado en formatos de supermercado (`EAN-13`, `EAN-8`, `UPC-A`, `QR_CODE`, `DATA_MATRIX`). Esto garantiza una lectura instantánea sin importar si el código de barras se sostiene en horizontal, vertical o inclinado.
+   - Implementa encuadre cuadrado (`aspectRatio: 1.0`) y ventana de lectura simétrica (`qrbox: 260x260`) con motor ZXing enfocado en formatos de supermercado (`EAN-13`, `EAN-8`, `UPC-A`, `QR_CODE`, `DATA_MATRIX`).
    - Decodifica códigos QR dinámicos de Mercadona (GS1 Digital Link para productos de peso variable en carne/pescado), extrayendo el GTIN y el precio inyectado.
-   - Incorpora protección anti-duplicados: pausa inmediata al detectar el producto, reanudación automática tras 1.8 segundos y tiempo de enfriamiento de 3.5 segundos para evitar lecturas repetidas si el usuario mantiene el producto frente a la cámara.
+   - Incorpora protección anti-duplicados: pausa inmediata al detectar el producto, reanudación automática tras 1.8 segundos y tiempo de enfriamiento de 3.5 segundos.
    - Proporciona control de encendido/apagado con liberación completa del hardware de la cámara (`stopScanner`), permitiendo que el usuario alterne sin conflicto hacia lectores de códigos nativos de Android.
    - Optimización integral de batería: opera a 10 FPS eficientes (ahorrando un 50% de CPU), suspensión automática cuando la pantalla se apaga o la app pasa a segundo plano (Page Visibility API), y reposo tras 2 minutos de inactividad.
    - Proporciona control de linterna (*torch*) y feedback sensorial sutil (*Beep* sintético Web Audio y vibración háptica).
-3. **`src/js/cart.js`:**
+4. **`src/js/cart.js` (Estado de la Cesta Activa):**
    - Gestiona el array de productos de la compra activa.
    - Guarda los cambios en `localStorage` inmediatamente para no perder la compra si la pantalla del móvil se apaga.
    - Calcula subtotales y formatea los números con coma decimal europea y símbolo de euro (`3,50 €`).
-4. **`src/js/budget.js`:**
+5. **`src/js/budget.js` (Control de Presupuesto):**
    - Gestiona el presupuesto configurable por el usuario entre 1 € y 200 € (con soporte para céntimos).
    - Recuerda automáticamente el último límite configurado en el almacenamiento local del teléfono (`localStorage`).
    - Evalúa el porcentaje consumido y determina los estados de alerta visual (verde, ámbar y rojo).
-5. **`src/js/modals.js`:**
+6. **`src/js/modals.js` (Gestor de Vistas Emergentes y Notificaciones):**
    - Controla la apertura y cierre suave de los paneles inferiores mediante transiciones de Tailwind CSS.
    - Gestiona la ventana modal centrada de producto reconocido (`showScannedProductModal`), mostrando el nombre, precio destacado en grande, icono de confirmación y temporizador visual animado que reanuda el escáner automáticamente.
-6. **`src/main.js`:**
-   - Conecta todos los módulos anteriores, gestiona los eventos de usuario y arranca la aplicación.
-   - Implementa el modal de confirmación de fin de compra (`panel-confirm-purchase`), previniendo pulsaciones accidentales mediante revisión previa de artículos, importe total y confirmación explícita antes de vaciar la cesta.
-   - Administra el historial de compras interactivo con visualización desplegable de tiquets completos (artículos, cantidades, precios unitarios, subtotales, fecha/hora y opción de recargar la compra en la cesta).
+7. **`src/main.js` (Orquestador Central y Flujo Just-In-Time):**
+   - Conecta todos los módulos anteriores, gestiona los eventos del DOM y arranca la aplicación.
+   - Implementa la experiencia **Just-In-Time Auth**: permite escanear libremente y usar la cesta en modo invitado sin barreras. Solo intercepta y solicita login/registro cuando el usuario realiza acciones de escritura protegidas (guardar tiquet o dar de alta un producto 404), reanudando la acción automáticamente tras autenticarse con éxito.
+   - Implementa el modal de confirmación de fin de compra (`panel-confirm-purchase`), previniendo pulsaciones accidentales.
+   - Administra el cajón de historial con sincronización híbrida: carga instantánea offline desde `localStorage` y fusión en segundo plano con `GET /api/v1/purchases` al detectar conexión a internet y sesión JWT activa.
+   - Gestiona los cajones deslizables de cuenta (`#panel-auth` con pestañas de Login y Registro) y perfil (`#panel-user` con rol, email y botón de cierre de sesión).
 
 ---
 
 ## 7. Integración con la API REST (Spring Boot en Render)
 
-El backend expone los siguientes endpoints que consume este frontend:
+El backend con Spring Security y JWT expone los siguientes endpoints que consume este frontend:
 
-| Método | Endpoint | Descripción | Cuerpo de Petición (Body) |
+| Método | Endpoint | Cabecera Auth requerida | Descripción / Comportamiento |
 | :--- | :--- | :--- | :--- |
-| **GET** | `/api/v1/products/by-barcode/{barcode}` | Consulta producto por código | *Ninguno* |
-| **POST** | `/api/v1/products` | Crea un nuevo producto | `{"barcode": "...", "name": "...", "price": 1.50}` |
-| **PUT** | `/api/v1/products/{barcode}` | Modifica un producto existente | `{"barcode": "...", "name": "...", "price": 1.70}` |
-| **GET** | `/api/v1/products` | Lista catálogo completo | *Ninguno* |
-| **POST** | `/api/v1/purchases` | Registra una compra finalizada | `{"items": [{"productId": 3, "quantity": 2}]}` |
-| **GET** | `/api/v1/products/search?q={texto}` | Sugerencias predictivas en tiempo real mientras el usuario escribe | *Ninguno* |
+| **POST** | `/api/v1/auth/register` | Ninguna | Registra nuevo usuario (`email`, `password`). Retorna `201 Created` con `{ token, email, role }`. |
+| **POST** | `/api/v1/auth/login` | Ninguna | Inicia sesión con credenciales. Retorna `200 OK` con `{ token, email, role }`. |
+| **GET** | `/api/v1/products/by-barcode/{code}` | Opcional (`Bearer <token>`) | Consulta producto. Si incluye token, prioriza versión personal (`user_id = user.id`) sobre la global. Modo invitado consulta catálogo global maestro. |
+| **GET** | `/api/v1/products/search?q={query}` | Opcional (`Bearer <token>`) | Retorna hasta 6 sugerencias combinando productos personales y globales sin duplicados. |
+| **POST** | `/api/v1/products` | Obligatoria (`Bearer <token>`) | Guarda producto. Crea/actualiza versión personal (o catálogo global si es `ROLE_ADMIN` y `makeGlobal: true`). |
+| **DELETE** | `/api/v1/products/{code}` | Obligatoria (`Bearer <token>`) | Elimina la copia personal del usuario (o global si es `ROLE_ADMIN`). |
+| **POST** | `/api/v1/purchases` | Obligatoria (`Bearer <token>`) | Persiste la compra asignada al usuario del token JWT (`user_id`). |
+| **GET** | `/api/v1/purchases` | Obligatoria (`Bearer <token>`) | Retorna el historial privado de tiquets exclusivo del usuario autenticado. |
 
 ### 💡 Diseño Didáctico: Endpoint de Sugerencias en Spring Boot
 Para implementar el desplegable de autocompletado cuando el usuario escribe letras en el buscador:

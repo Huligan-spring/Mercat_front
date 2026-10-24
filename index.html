@@ -45,21 +45,27 @@
       </div>
 
       <!-- Botones de Acción Rápida (Drawers) -->
-      <div class="flex items-center gap-space-xs shrink-0">
-        <button id="header-btn-guide" type="button" aria-label="Guía de uso" title="Guía didáctica" class="btn-tactile w-10 h-10 rounded-full flex items-center justify-center bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-primary transition-all">
-          <span class="material-symbols-outlined text-[20px]">help_outline</span>
+      <div class="flex items-center gap-1 sm:gap-1.5 shrink-0">
+        <button id="header-btn-guide" type="button" aria-label="Guía de uso" title="Guía didáctica" class="btn-tactile w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-primary transition-all">
+          <span class="material-symbols-outlined text-[19px] sm:text-[20px]">help_outline</span>
         </button>
 
-        <button id="header-btn-history" type="button" aria-label="Historial de compras" title="Historial" class="btn-tactile w-10 h-10 rounded-full flex items-center justify-center bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-primary transition-all">
-          <span class="material-symbols-outlined text-[20px]">receipt_long</span>
+        <button id="header-btn-history" type="button" aria-label="Historial de compras" title="Historial" class="btn-tactile w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-primary transition-all">
+          <span class="material-symbols-outlined text-[19px] sm:text-[20px]">receipt_long</span>
         </button>
 
-        <button id="header-btn-list" type="button" aria-label="Lista de la compra" title="Lista previa" class="btn-tactile w-10 h-10 rounded-full flex items-center justify-center bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-primary transition-all">
-          <span class="material-symbols-outlined text-[20px]">checklist</span>
+        <button id="header-btn-list" type="button" aria-label="Lista de la compra" title="Lista previa" class="btn-tactile w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-primary transition-all">
+          <span class="material-symbols-outlined text-[19px] sm:text-[20px]">checklist</span>
         </button>
 
-        <button id="header-btn-profile" type="button" aria-label="Mi Presupuesto" title="Ajustar Presupuesto" class="btn-tactile w-10 h-10 rounded-full flex items-center justify-center bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-primary transition-all">
-          <span class="material-symbols-outlined text-[20px]">savings</span>
+        <button id="header-btn-profile" type="button" aria-label="Mi Presupuesto" title="Ajustar Presupuesto" class="btn-tactile w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-primary transition-all">
+          <span class="material-symbols-outlined text-[19px] sm:text-[20px]">savings</span>
+        </button>
+
+        <!-- Botón de Cuenta / Sesión JWT (Invitado o Autenticado) -->
+        <button id="header-btn-auth" type="button" aria-label="Mi Cuenta" title="Iniciar sesión" class="btn-tactile relative w-9 h-9 sm:w-10 sm:h-10 rounded-full flex items-center justify-center bg-surface-container-low hover:bg-surface-container text-on-surface-variant hover:text-primary transition-all">
+          <span id="header-auth-icon" class="material-symbols-outlined text-[19px] sm:text-[20px]">person_outline</span>
+          <span id="header-auth-dot" class="hidden absolute top-1 right-1 w-2 h-2 rounded-full bg-emerald-500 ring-2 ring-surface animate-pulse"></span>
         </button>
       </div>
 
@@ -478,6 +484,150 @@
           Seguir comprando
         </button>
       </div>
+
+    </div>
+
+    <!-- MODAL 7: AUTENTICACIÓN (LOGIN Y REGISTRO JUST-IN-TIME) -->
+    <div id="panel-auth" data-drawer-panel class="absolute inset-x-0 bottom-0 max-h-[90vh] rounded-t-3xl bg-surface p-space-md shadow-2xl flex flex-col gap-3.5 transition-transform duration-300 translate-y-full border-t border-primary/20">
+      
+      <!-- Cabecera del panel -->
+      <div class="flex items-center justify-between border-b border-surface-container-high pb-2">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center">
+            <span class="material-symbols-outlined text-[18px]">account_circle</span>
+          </div>
+          <div>
+            <span class="font-headline-sm text-headline-sm text-on-surface font-bold">Mi Cuenta</span>
+            <p class="text-[11px] text-on-surface-variant leading-none mt-0.5">Accede a tus compras e historial en la nube</p>
+          </div>
+        </div>
+        <button id="close-auth-modal" type="button" aria-label="Cerrar ventana" class="btn-tactile w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-container text-on-surface-variant">
+          <span class="material-symbols-outlined text-[20px]">close</span>
+        </button>
+      </div>
+
+      <!-- Aviso contextual (Just-In-Time) -->
+      <div id="auth-context-notice" class="hidden p-3 rounded-xl bg-amber-50 border border-amber-200 text-amber-900 text-[12px] flex items-center gap-2">
+        <span class="material-symbols-outlined text-[18px] text-amber-700 shrink-0">lock</span>
+        <span id="auth-context-notice-text" class="font-medium">Inicia sesión o regístrate para guardar tu compra en tu historial personal.</span>
+      </div>
+
+      <!-- Selector de Pestañas: Iniciar Sesión / Crear Cuenta -->
+      <div class="flex p-1 bg-surface-container-low rounded-xl gap-1">
+        <button id="tab-auth-login" type="button" class="flex-1 py-2 text-center text-[13px] font-bold rounded-lg bg-surface-container-lowest text-primary shadow-xs transition-all">
+          Iniciar sesión
+        </button>
+        <button id="tab-auth-register" type="button" class="flex-1 py-2 text-center text-[13px] font-semibold rounded-lg text-on-surface-variant hover:text-on-surface transition-all">
+          Crear cuenta
+        </button>
+      </div>
+
+      <!-- Mensaje de Feedback / Error -->
+      <div id="auth-feedback-box" class="hidden p-2.5 rounded-xl text-[12px] font-medium flex items-center gap-2">
+        <span id="auth-feedback-icon" class="material-symbols-outlined text-[16px]">error</span>
+        <span id="auth-feedback-text"></span>
+      </div>
+
+      <!-- FORMULARIO 1: INICIAR SESIÓN -->
+      <form id="form-auth-login" class="flex flex-col gap-3">
+        <div class="flex flex-col gap-1">
+          <label for="login-email" class="font-label-sm text-label-sm text-on-surface-variant font-medium">Correo electrónico</label>
+          <div class="relative">
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-outline">mail</span>
+            <input id="login-email" type="email" required autocomplete="email" placeholder="ejemplo@mercat.com" class="w-full pl-9 pr-3 py-2 rounded-xl bg-surface-container-lowest border border-surface-container-high text-on-surface font-body-md text-body-md focus:outline-none focus:ring-2 focus:ring-primary/40"/>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-1">
+          <label for="login-password" class="font-label-sm text-label-sm text-on-surface-variant font-medium">Contraseña</label>
+          <div class="relative">
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-outline">key</span>
+            <input id="login-password" type="password" required autocomplete="current-password" placeholder="Tu contraseña" class="w-full pl-9 pr-3 py-2 rounded-xl bg-surface-container-lowest border border-surface-container-high text-on-surface font-body-md text-body-md focus:outline-none focus:ring-2 focus:ring-primary/40"/>
+          </div>
+        </div>
+
+        <button id="submit-login-btn" type="submit" class="btn-tactile w-full py-3 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-label-md font-semibold text-center flex items-center justify-center gap-2 shadow-sm transition-all mt-1">
+          <span id="submit-login-icon" class="material-symbols-outlined text-[18px]">login</span>
+          <span id="submit-login-text">Entrar a mi cuenta</span>
+        </button>
+      </form>
+
+      <!-- FORMULARIO 2: REGISTRARSE (OCULTO INICIALMENTE) -->
+      <form id="form-auth-register" class="hidden flex flex-col gap-3">
+        <div class="flex flex-col gap-1">
+          <label for="register-email" class="font-label-sm text-label-sm text-on-surface-variant font-medium">Correo electrónico</label>
+          <div class="relative">
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-outline">mail</span>
+            <input id="register-email" type="email" required autocomplete="email" placeholder="ejemplo@mercat.com" class="w-full pl-9 pr-3 py-2 rounded-xl bg-surface-container-lowest border border-surface-container-high text-on-surface font-body-md text-body-md focus:outline-none focus:ring-2 focus:ring-primary/40"/>
+          </div>
+        </div>
+
+        <div class="flex flex-col gap-1">
+          <label for="register-password" class="font-label-sm text-label-sm text-on-surface-variant font-medium">Contraseña (mínimo 6 caracteres)</label>
+          <div class="relative">
+            <span class="material-symbols-outlined absolute left-3 top-1/2 -translate-y-1/2 text-[18px] text-outline">key</span>
+            <input id="register-password" type="password" required minlength="6" autocomplete="new-password" placeholder="Mínimo 6 caracteres" class="w-full pl-9 pr-3 py-2 rounded-xl bg-surface-container-lowest border border-surface-container-high text-on-surface font-body-md text-body-md focus:outline-none focus:ring-2 focus:ring-primary/40"/>
+          </div>
+        </div>
+
+        <button id="submit-register-btn" type="submit" class="btn-tactile w-full py-3 rounded-xl bg-primary hover:bg-primary-container text-on-primary font-label-md font-semibold text-center flex items-center justify-center gap-2 shadow-sm transition-all mt-1">
+          <span id="submit-register-icon" class="material-symbols-outlined text-[18px]">person_add</span>
+          <span id="submit-register-text">Crear cuenta gratis</span>
+        </button>
+      </form>
+
+    </div>
+
+    <!-- MODAL 8: PERFIL DE USUARIO AUTENTICADO -->
+    <div id="panel-user" data-drawer-panel class="absolute inset-x-0 bottom-0 max-h-[85vh] rounded-t-3xl bg-surface p-space-md shadow-2xl flex flex-col gap-4 transition-transform duration-300 translate-y-full border-t border-primary/20">
+      
+      <div class="flex items-center justify-between border-b border-surface-container-high pb-2">
+        <div class="flex items-center gap-2">
+          <div class="w-8 h-8 rounded-full bg-emerald-100 text-emerald-700 flex items-center justify-center">
+            <span class="material-symbols-outlined text-[20px]">person</span>
+          </div>
+          <div>
+            <span class="font-headline-sm text-headline-sm text-on-surface font-bold">Mi Perfil</span>
+            <p class="text-[11px] text-on-surface-variant leading-none mt-0.5">Sesión activa protegida con JWT</p>
+          </div>
+        </div>
+        <button id="close-user-modal" type="button" aria-label="Cerrar ventana" class="btn-tactile w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-container text-on-surface-variant">
+          <span class="material-symbols-outlined text-[20px]">close</span>
+        </button>
+      </div>
+
+      <!-- Tarjeta de datos de usuario -->
+      <div class="p-4 rounded-2xl bg-surface-container-low border border-surface-container-high/80 flex flex-col gap-3">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 rounded-full bg-primary/10 text-primary flex items-center justify-center font-bold text-lg shrink-0">
+            <span id="user-profile-initial">U</span>
+          </div>
+          <div class="flex flex-col min-w-0 flex-1">
+            <span class="text-[11px] font-semibold text-on-surface-variant uppercase tracking-wider">Usuario</span>
+            <span id="user-profile-email" class="font-bold text-on-surface text-[15px] truncate">usuario@mercat.com</span>
+          </div>
+          <span id="user-profile-role" class="px-2.5 py-1 rounded-full text-[11px] font-bold uppercase tracking-wider bg-emerald-100 text-emerald-800 shrink-0">
+            USUARIO
+          </span>
+        </div>
+
+        <div class="pt-2 border-t border-surface-container flex flex-col gap-1.5 text-[12px] text-on-surface-variant">
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-[16px] text-emerald-600">cloud_done</span>
+            <span>Compras sincronizadas con Supabase</span>
+          </div>
+          <div class="flex items-center gap-2">
+            <span class="material-symbols-outlined text-[16px] text-emerald-600">inventory_2</span>
+            <span>Catálogo activo: Maestro + Productos propios</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Botón de Cerrar Sesión -->
+      <button id="btn-user-logout" type="button" class="btn-tactile w-full h-11 px-6 rounded-full bg-red-50 hover:bg-red-100 text-red-700 font-label-md font-semibold flex items-center justify-center gap-2 border border-red-200 transition-all cursor-pointer">
+        <span class="material-symbols-outlined text-[18px]">logout</span>
+        <span>Cerrar sesión</span>
+      </button>
 
     </div>
 

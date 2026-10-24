@@ -1,15 +1,88 @@
 /**
  * =========================================================================
- * Módulo de API: Comunicación con Spring Boot (Render)
+ * Módulo de API: Comunicación con Spring Boot (Render) y Supabase
  * =========================================================================
  * 
- * Este módulo centraliza todas las llamadas HTTP a nuestro backend.
- * Utiliza la API nativa de JavaScript 'fetch', que es estándar en todos los navegadores modernos.
+ * Centraliza las llamadas HTTP al backend de Spring Boot.
+ * Utiliza 'secureFetch' del módulo auth.js para transmitir de forma transparente
+ * el token JWT del usuario si está autenticado, permitiendo el modelo híbrido:
+ * - Si hay sesión: el servidor resuelve preferencias y compras del usuario.
+ * - Si no hay sesión (invitado): el servidor opera con el catálogo maestro global.
  */
+
+import { secureFetch, isAdmin } from './auth.js';
 
 // Obtenemos la URL base desde las variables de entorno de Vite (.env)
 // Si no existe, usamos la URL por defecto en producción en Render.
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'https://mercat-backend-6mxo.onrender.com/api/v1';
+
+// =========================================================================
+// 1. AUTENTICACIÓN (LOGIN Y REGISTRO)
+// =========================================================================
+
+/**
+ * Inicia sesión con correo electrónico y contraseña.
+ * 
+ * @param {string} email Correo electrónico
+ * @param {string} password Contraseña en texto plano
+ * @returns {Promise<{ token: string, email: string, role: string }>}
+ */
+export async function loginUser(email, password) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/login`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({ email: email.trim(), password })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'Credenciales incorrectas');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('[API] Error al iniciar sesión:', error);
+    throw error;
+  }
+}
+
+/**
+ * Registra un nuevo usuario en el sistema.
+ * 
+ * @param {string} email Correo electrónico único
+ * @param {string} password Contraseña deseada (mínimo 6 caracteres)
+ * @returns {Promise<{ token: string, email: string, role: string }>}
+ */
+export async function registerUser(email, password) {
+  try {
+    const response = await fetch(`${API_BASE_URL}/auth/register`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({ email: email.trim(), password })
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json().catch(() => ({}));
+      throw new Error(errorData.error || 'No se pudo crear la cuenta');
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('[API] Error al registrar usuario:', error);
+    throw error;
+  }
+}
+
+// =========================================================================
+// 2. SALUD Y COMPROBACIÓN DEL SERVIDOR
+// =========================================================================
 
 /**
  * Despierta la instancia de Render en segundo plano al abrir la aplicación.
@@ -41,8 +114,14 @@ export async function pingBackend(timeoutMs = 6000) {
   return false;
 }
 
+// =========================================================================
+// 3. PRODUCTOS Y CATÁLOGO HÍBRIDO
+// =========================================================================
+
 /**
  * Consulta un producto por su código de barras.
+ * Si el usuario tiene sesión activa, el backend prioriza su versión personalizada.
+ * Si no existe o está en modo invitado, retorna el producto maestro global.
  * 
  * @param {string} barcode Código EAN-13 leído por la cámara o escrito por el usuario.
  * @returns {Promise<Object|null>} Devuelve el objeto del producto ({ id, barcode, name, price })
@@ -51,14 +130,13 @@ export async function pingBackend(timeoutMs = 6000) {
 export async function getProductByBarcode(barcode) {
   try {
     const cleanBarcode = barcode.trim();
-    const response = await fetch(`${API_BASE_URL}/products/by-barcode/${cleanBarcode}`, {
+    const response = await secureFetch(`${API_BASE_URL}/products/by-barcode/${cleanBarcode}`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json'
       }
     });
 
-    // Si el servidor responde 404 Not Found, significa que el producto aún no está en Supabase
     if (response.status === 404) {
       return null;
     }
@@ -67,9 +145,7 @@ export async function getProductByBarcode(barcode) {
       throw new Error(`Error en el servidor: Código ${response.status}`);
     }
 
-    // Convertimos la respuesta en JSON a un objeto JavaScript
-    const data = await response.json();
-    return data;
+    return await response.json();
   } catch (error) {
     console.error(`[API] Error al consultar el código ${barcode}:`, error);
     throw error;
@@ -77,69 +153,9 @@ export async function getProductByBarcode(barcode) {
 }
 
 /**
- * Da de alta un nuevo producto en la base de datos (Supabase a través de Spring Boot).
- * 
- * @param {Object} productData Datos del nuevo producto
- * @param {string} productData.barcode Código de barras único
- * @param {string} productData.name Nombre descriptivo (ej: "Leche Semidesnatada 1L")
- * @param {number} productData.price Precio en euros (ej: 1.25)
- * @returns {Promise<Object>} El producto creado con su ID generado por la base de datos.
- */
-export async function createProduct({ barcode, name, price }) {
-  try {
-    const payload = {
-      barcode: barcode.trim(),
-      name: name.trim(),
-      price: parseFloat(price)
-    };
-
-    const response = await fetch(`${API_BASE_URL}/products`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify(payload)
-    });
-
-    if (!response.ok) {
-      throw new Error(`No se pudo crear el producto. Código: ${response.status}`);
-    }
-
-    const createdProduct = await response.json();
-    return createdProduct;
-  } catch (error) {
-    console.error('[API] Error al crear nuevo producto:', error);
-    throw error;
-  }
-}
-
-/**
- * Obtiene la lista completa de productos registrados en la base de datos.
- * Es útil para autocompletar búsquedas por nombre o alimentar la lista sin escanear.
- * 
- * @returns {Promise<Array>} Lista de productos [{ id, barcode, name, price }, ...]
- */
-export async function getAllProducts() {
-  try {
-    const response = await fetch(`${API_BASE_URL}/products`, {
-      method: 'GET',
-      headers: { 'Accept': 'application/json' }
-    });
-
-    if (!response.ok) {
-      throw new Error(`Error al listar productos: ${response.status}`);
-    }
-
-    return await response.json();
-  } catch (error) {
-    console.error('[API] Error al obtener catálogo de productos:', error);
-    return [];
-  }
-}
-
-/**
  * Consulta sugerencias de productos predictivas por texto o código en el backend.
+ * Con token: combina catálogo personal y global sin duplicar.
+ * Sin token: busca solo en el catálogo global maestro.
  * 
  * @param {string} query Término de búsqueda (ej: "nuez", "pan", "8480")
  * @returns {Promise<Array>} Lista de hasta 6 productos [{ id, barcode, name, price }, ...]
@@ -150,7 +166,7 @@ export async function searchSuggestions(query) {
   }
   try {
     const cleanQuery = encodeURIComponent(query.trim());
-    const response = await fetch(`${API_BASE_URL}/products/search?q=${cleanQuery}`, {
+    const response = await secureFetch(`${API_BASE_URL}/products/search?q=${cleanQuery}`, {
       method: 'GET',
       headers: {
         'Accept': 'application/json'
@@ -169,24 +185,26 @@ export async function searchSuggestions(query) {
 }
 
 /**
- * Guarda la compra finalizada en el backend.
+ * Da de alta un nuevo producto en la base de datos (Supabase a través de Spring Boot).
+ * - Si es ROLE_ADMIN: se crea como producto global maestro si makeGlobal es true.
+ * - Si es ROLE_USER: se crea automáticamente como producto personal vinculado a su user_id.
  * 
- * Estructura esperada por Spring Boot:
- * {
- *   "items": [
- *     { "productId": 3, "quantity": 2 },
- *     { "productId": 4, "quantity": 1 }
- *   ]
- * }
- * 
- * @param {Array<{productId: number, quantity: number}>} items Lista de artículos con su ID y cantidad
- * @returns {Promise<Object>} Objeto de la compra guardada (incluye fecha y total calculado)
+ * @param {Object} productData Datos del nuevo producto
+ * @param {string} productData.barcode Código de barras único
+ * @param {string} productData.name Nombre descriptivo (ej: "Leche Semidesnatada 1L")
+ * @param {number} productData.price Precio en euros (ej: 1.25)
+ * @returns {Promise<Object>} El producto creado con su ID generado por la base de datos.
  */
-export async function savePurchase(items) {
+export async function createProduct({ barcode, name, price }) {
   try {
-    const payload = { items };
+    const payload = {
+      barcode: barcode.trim(),
+      name: name.trim(),
+      price: parseFloat(price),
+      makeGlobal: isAdmin() // Los administradores crean maestros; usuarios estándar crean personales
+    };
 
-    const response = await fetch(`${API_BASE_URL}/purchases`, {
+    const response = await secureFetch(`${API_BASE_URL}/products`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -196,13 +214,94 @@ export async function savePurchase(items) {
     });
 
     if (!response.ok) {
-      throw new Error(`Error al guardar la compra: ${response.status}`);
+      const errBody = await response.json().catch(() => ({}));
+      throw new Error(errBody.error || `No se pudo crear el producto. Código: ${response.status}`);
     }
 
-    const purchaseResult = await response.json();
-    return purchaseResult;
+    return await response.json();
+  } catch (error) {
+    console.error('[API] Error al crear nuevo producto:', error);
+    throw error;
+  }
+}
+
+/**
+ * Obtiene la lista completa de productos registrados en la base de datos.
+ * 
+ * @returns {Promise<Array>} Lista de productos [{ id, barcode, name, price }, ...]
+ */
+export async function getAllProducts() {
+  try {
+    const response = await secureFetch(`${API_BASE_URL}/products`, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' }
+    });
+
+    if (!response.ok) {
+      throw new Error(`Error al listar productos: ${response.status}`);
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.error('[API] Error al obtener catálogo de productos:', error);
+    return [];
+  }
+}
+
+// =========================================================================
+// 4. COMPRAS Y TICKETS (MULTIUSUARIO)
+// =========================================================================
+
+/**
+ * Guarda la compra finalizada en el backend asociada al usuario autenticado.
+ * 
+ * @param {Array<{productId: number, quantity: number}>} items Lista de artículos con su ID y cantidad
+ * @returns {Promise<Object>} Objeto de la compra guardada (incluye fecha y total calculado)
+ */
+export async function savePurchase(items) {
+  try {
+    const payload = { items };
+
+    const response = await secureFetch(`${API_BASE_URL}/purchases`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify(payload)
+    });
+
+    if (!response.ok) {
+      const err = await response.text();
+      throw new Error(err || `Error al guardar la compra: ${response.status}`);
+    }
+
+    return await response.json();
   } catch (error) {
     console.error('[API] Error al registrar la compra:', error);
     throw error;
+  }
+}
+
+/**
+ * Obtiene el historial de compras remoto del usuario autenticado desde Supabase.
+ * 
+ * @returns {Promise<Array>} Lista de compras del usuario [{ id, purchasedAt, total, items: [...] }]
+ */
+export async function getMyPurchases() {
+  try {
+    const response = await secureFetch(`${API_BASE_URL}/purchases`, {
+      method: 'GET',
+      headers: { 'Accept': 'application/json' }
+    });
+
+    if (!response.ok) {
+      return [];
+    }
+
+    return await response.json();
+  } catch (error) {
+    console.warn('[API] Error al obtener compras remotas:', error);
+    return [];
   }
 }

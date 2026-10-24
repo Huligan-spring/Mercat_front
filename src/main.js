@@ -941,56 +941,103 @@ function resetCameraOverlayToOff() {
   if (camPausedSubtitleEl) camPausedSubtitleEl.classList.add('hidden');
 }
 
-btnToggleCamera?.addEventListener('click', async () => {
-  if (isScannerRunning()) {
-    // Detiene por completo la cámara y libera el hardware para que otras apps (ej. lector nativo) puedan usarla
-    await stopScanner();
-    if (inactivityTimer) clearTimeout(inactivityTimer);
-    isScannerInSleepMode = false;
-    resetCameraOverlayToOff();
+/**
+ * Enciende e inicializa la cámara de forma segura.
+ */
+async function turnCameraOn() {
+  resetCameraOverlayToOff();
+  if (camOverlayEl) {
+    camOverlayEl.classList.add('opacity-0', 'pointer-events-none');
+    camOverlayEl.classList.remove('opacity-100', 'pointer-events-auto');
+  }
 
+  if (camIconEl) {
+    camIconEl.textContent = 'videocam';
+    camIconEl.className = 'material-symbols-outlined text-[18px] text-primary';
+  }
+  if (camTextEl) camTextEl.textContent = 'Iniciando...';
+  if (camDotEl) camDotEl.className = 'w-2 h-2 rounded-full bg-primary animate-pulse';
+
+  const ok = await startScanner(
+    'interactive-scanner',
+    (detectedBarcode, detectedPrice) => {
+      handleBarcodeDetected(detectedBarcode, detectedPrice);
+    },
+    (err) => {
+      console.warn('[Scanner] Aviso de cámara:', err.message);
+      showToast('Cámara en modo manual. Puedes escribir el código arriba.', 'info');
+      // Revertir a Off en caso de error de permisos
+      if (camIconEl) {
+        camIconEl.textContent = 'videocam_off';
+        camIconEl.className = 'material-symbols-outlined text-[18px] text-on-surface-variant';
+      }
+      if (camTextEl) camTextEl.textContent = 'Off';
+      if (camDotEl) camDotEl.className = 'w-2 h-2 rounded-full bg-outline-variant';
+      if (camOverlayEl) {
+        camOverlayEl.classList.remove('opacity-0', 'pointer-events-none');
+        camOverlayEl.classList.add('opacity-100', 'pointer-events-auto');
+      }
+    }
+  );
+
+  if (ok) {
+    isScannerInSleepMode = false;
+    if (camTextEl) camTextEl.textContent = 'On';
+    if (laserBeamEl) laserBeamEl.style.display = 'flex';
+    resetInactivityTimer();
+    showToast('Cámara activada (On)', 'videocam');
+  }
+  return ok;
+}
+
+/**
+ * Apaga por completo la cámara y libera el hardware.
+ */
+async function turnCameraOff() {
+  await stopScanner();
+  if (inactivityTimer) clearTimeout(inactivityTimer);
+  isScannerInSleepMode = false;
+  resetCameraOverlayToOff();
+
+  if (camIconEl) {
     camIconEl.textContent = 'videocam_off';
     camIconEl.className = 'material-symbols-outlined text-[18px] text-on-surface-variant';
-    camTextEl.textContent = 'Off';
-    camDotEl.className = 'w-2 h-2 rounded-full bg-outline-variant';
+  }
+  if (camTextEl) camTextEl.textContent = 'Off';
+  if (camDotEl) camDotEl.className = 'w-2 h-2 rounded-full bg-outline-variant';
+  if (camOverlayEl) {
     camOverlayEl.classList.remove('opacity-0', 'pointer-events-none');
     camOverlayEl.classList.add('opacity-100', 'pointer-events-auto');
-    if (laserBeamEl) laserBeamEl.style.display = 'none';
-
-    // Apagar linterna si estaba activa
-    if (torchIconEl && torchTextEl && torchDotEl) {
-      torchIconEl.textContent = 'flashlight_off';
-      torchIconEl.className = 'material-symbols-outlined text-[18px] text-on-surface-variant';
-      torchTextEl.textContent = 'Off';
-      torchDotEl.className = 'w-2 h-2 rounded-full bg-outline-variant';
-      if (torchAmbientEl) torchAmbientEl.classList.add('opacity-0');
-    }
-
-    showToast('Cámara apagada y liberada', 'videocam_off');
-  } else {
-    // Inicia la cámara y el visor de escaneo
-    const ok = await startScanner(
-      'interactive-scanner',
-      (detectedBarcode, detectedPrice) => {
-        handleBarcodeDetected(detectedBarcode, detectedPrice);
-      },
-      (err) => {
-        showToast('No se pudo acceder a la cámara', 'error');
-      }
-    );
-    if (ok) {
-      resetCameraOverlayToOff();
-      camIconEl.textContent = 'videocam';
-      camIconEl.className = 'material-symbols-outlined text-[18px] text-primary';
-      camTextEl.textContent = 'On';
-      camDotEl.className = 'w-2 h-2 rounded-full bg-primary animate-pulse';
-      camOverlayEl.classList.add('opacity-0', 'pointer-events-none');
-      camOverlayEl.classList.remove('opacity-100', 'pointer-events-auto');
-      if (laserBeamEl) laserBeamEl.style.display = 'flex';
-      resetInactivityTimer();
-      showToast('Cámara activada (On)', 'videocam');
-    }
   }
+  if (laserBeamEl) laserBeamEl.style.display = 'none';
+
+  // Apagar linterna si estaba activa
+  if (torchIconEl && torchTextEl && torchDotEl) {
+    torchIconEl.textContent = 'flashlight_off';
+    torchIconEl.className = 'material-symbols-outlined text-[18px] text-on-surface-variant';
+    torchTextEl.textContent = 'Off';
+    torchDotEl.className = 'w-2 h-2 rounded-full bg-outline-variant';
+    if (torchAmbientEl) torchAmbientEl.classList.add('opacity-0');
+  }
+
+  showToast('Cámara apagada y liberada', 'videocam_off');
+}
+
+btnToggleCamera?.addEventListener('click', async () => {
+  // Caso 1: Si está en modo reposo de batería -> Despertar y activar
+  if (isScannerInSleepMode) {
+    await wakeUpCameraFromSleep();
+    return;
+  }
+
+  // Caso 2: Si está activa y funcionando -> Apagar y liberar
+  if (isScannerRunning()) {
+    await turnCameraOff();
+    return;
+  }
+
+  // Caso 3: Si está apagada (Off) -> Iniciar cámara
+  await turnCameraOn();
 });
 
 btnToggleTorch?.addEventListener('click', async () => {
@@ -1034,8 +1081,10 @@ function enterCameraSleepMode() {
       camPausedSubtitleEl.textContent = 'Ahorro de batería • Toca para reactivar';
       camPausedSubtitleEl.classList.remove('hidden');
     }
-    camOverlayEl.classList.remove('opacity-0', 'pointer-events-none');
-    camOverlayEl.classList.add('opacity-100', 'pointer-events-auto');
+    if (camOverlayEl) {
+      camOverlayEl.classList.remove('opacity-0', 'pointer-events-none');
+      camOverlayEl.classList.add('opacity-100', 'pointer-events-auto');
+    }
 
     if (camIconEl) {
       camIconEl.textContent = 'bedtime';
@@ -1052,25 +1101,35 @@ function enterCameraSleepMode() {
 /**
  * Despierta la cámara del modo reposo de batería.
  */
-function wakeUpCameraFromSleep() {
+async function wakeUpCameraFromSleep() {
   if (!isScannerInSleepMode) return;
   isScannerInSleepMode = false;
-  resumeScanner();
 
-  resetCameraOverlayToOff();
-  camOverlayEl.classList.add('opacity-0', 'pointer-events-none');
-  camOverlayEl.classList.remove('opacity-100', 'pointer-events-auto');
+  // Intento 1: Reanudar si el stream de vídeo sigue vivo
+  const resumedOk = resumeScanner();
+  if (resumedOk && isScannerRunning() && !isCameraPaused()) {
+    resetCameraOverlayToOff();
+    if (camOverlayEl) {
+      camOverlayEl.classList.add('opacity-0', 'pointer-events-none');
+      camOverlayEl.classList.remove('opacity-100', 'pointer-events-auto');
+    }
 
-  if (camIconEl) {
-    camIconEl.textContent = 'videocam';
-    camIconEl.className = 'material-symbols-outlined text-[18px] text-primary';
+    if (camIconEl) {
+      camIconEl.textContent = 'videocam';
+      camIconEl.className = 'material-symbols-outlined text-[18px] text-primary';
+    }
+    if (camTextEl) camTextEl.textContent = 'On';
+    if (camDotEl) camDotEl.className = 'w-2 h-2 rounded-full bg-primary animate-pulse';
+    if (laserBeamEl) laserBeamEl.style.display = 'flex';
+
+    resetInactivityTimer();
+    showToast('Cámara reactivada', 'videocam');
+    return;
   }
-  if (camTextEl) camTextEl.textContent = 'On';
-  if (camDotEl) camDotEl.className = 'w-2 h-2 rounded-full bg-primary animate-pulse';
-  if (laserBeamEl) laserBeamEl.style.display = 'flex';
 
-  resetInactivityTimer();
-  showToast('Cámara reactivada', 'videocam');
+  // Intento 2: Si el stream murió por inactividad del navegador (Android Chrome / iOS), reiniciar limpiamente
+  await stopScanner();
+  await turnCameraOn();
 }
 
 /**
@@ -1078,20 +1137,20 @@ function wakeUpCameraFromSleep() {
  */
 function resetInactivityTimer() {
   if (inactivityTimer) clearTimeout(inactivityTimer);
-  if (isScannerRunning() && !isCameraPaused()) {
+  if (isScannerRunning() && !isCameraPaused() && !isScannerInSleepMode) {
     inactivityTimer = setTimeout(enterCameraSleepMode, INACTIVITY_TIMEOUT_MS);
   }
 }
 
 // Reactivar la cámara si el usuario toca la capa oscura de reposo
-camOverlayEl?.addEventListener('click', () => {
+camOverlayEl?.addEventListener('click', async () => {
   if (isScannerInSleepMode) {
-    wakeUpCameraFromSleep();
+    await wakeUpCameraFromSleep();
   }
 });
 
 // Registrar interacciones en la app para reiniciar el tiempo de reposo
-['click', 'touchstart', 'scroll'].forEach(evt => {
+['click', 'touchstart'].forEach(evt => {
   window.addEventListener(evt, () => {
     if (isScannerInSleepMode) {
       wakeUpCameraFromSleep();
@@ -1102,7 +1161,7 @@ camOverlayEl?.addEventListener('click', () => {
 });
 
 // Page Visibility API: apagar inmediatamente la cámara si la pantalla se bloquea o la app pasa a segundo plano
-document.addEventListener('visibilitychange', () => {
+document.addEventListener('visibilitychange', async () => {
   if (document.hidden) {
     // Si la pantalla se apagó o el usuario cambió de app -> pausar cámara inmediatamente
     if (isScannerRunning() && !isCameraPaused()) {
@@ -1111,10 +1170,14 @@ document.addEventListener('visibilitychange', () => {
     }
     if (inactivityTimer) clearTimeout(inactivityTimer);
   } else {
-    // Si el usuario regresa a la app y la cámara estaba activa -> reanudar
+    // Si el usuario regresa a la app y la cámara estaba activa -> reanudar o reiniciar si el track murió
     if (wasScannerActiveBeforeHide) {
       wasScannerActiveBeforeHide = false;
-      resumeScanner();
+      const resumed = resumeScanner();
+      if (!resumed) {
+        await stopScanner();
+        await turnCameraOn();
+      }
     }
     resetInactivityTimer();
   }
@@ -1556,21 +1619,7 @@ async function initApp() {
   });
 
   // 7. Arrancar la cámara del escáner
-  const scannerContainer = 'interactive-scanner';
-  startScanner(
-    scannerContainer,
-    (detectedBarcode, detectedPrice) => {
-      handleBarcodeDetected(detectedBarcode, detectedPrice);
-    },
-    (err) => {
-      console.warn('[Scanner] Aviso de cámara:', err.message);
-      showToast('Cámara en modo manual. Puedes escribir el código arriba.', 'info');
-    }
-  ).then((ok) => {
-    if (ok) {
-      resetInactivityTimer();
-    }
-  });
+  await turnCameraOn();
 }
 
 // Arrancamos en cuanto el DOM esté listo

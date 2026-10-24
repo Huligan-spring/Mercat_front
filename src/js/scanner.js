@@ -77,14 +77,29 @@ function triggerVibration() {
  */
 export async function startScanner(elementId, onCodeDetected, onError) {
   try {
-    if (!html5QrCode) {
-      html5QrCode = new Html5Qrcode(elementId, {
-        formatsToSupport: BARCODE_FORMATS,
-        verbose: false
-      });
-      // Desactiva el aviso interno por defecto "Scanner paused" de html5-qrcode
-      html5QrCode.showPausedState = () => {};
+    // Si ya existía una instancia previa o quedó huérfana, destruirla y limpiar el contenedor
+    if (html5QrCode) {
+      try {
+        const state = html5QrCode.getState();
+        if (state === Html5QrcodeScannerState.SCANNING || state === Html5QrcodeScannerState.PAUSED) {
+          await html5QrCode.stop();
+        }
+        html5QrCode.clear();
+      } catch (e) {}
+      html5QrCode = null;
     }
+
+    const container = document.getElementById(elementId);
+    if (container) {
+      container.innerHTML = '';
+    }
+
+    html5QrCode = new Html5Qrcode(elementId, {
+      formatsToSupport: BARCODE_FORMATS,
+      verbose: false
+    });
+    // Desactiva el aviso interno por defecto "Scanner paused" de html5-qrcode
+    html5QrCode.showPausedState = () => {};
 
     const cameraConfig = { facingMode: 'environment' };
 
@@ -193,24 +208,38 @@ export function pauseScanner() {
 
 /**
  * Reanuda la lectura y reproduce el vídeo de forma segura.
+ * Retorna true si se reanudó con éxito, o false si el stream murió por inactividad.
+ * 
+ * @returns {boolean}
  */
 export function resumeScanner() {
-  if (html5QrCode) {
-    try {
-      const state = html5QrCode.getState();
-      if (state === Html5QrcodeScannerState.PAUSED) {
-        html5QrCode.resume();
+  if (!html5QrCode) return false;
+
+  try {
+    const videoEl = document.querySelector('#interactive-scanner video');
+    // Si el navegador finalizó el track de vídeo durante el reposo (Android Chrome / iOS)
+    if (videoEl && videoEl.srcObject && videoEl.srcObject.getVideoTracks) {
+      const tracks = videoEl.srcObject.getVideoTracks();
+      if (tracks.length === 0 || tracks[0].readyState === 'ended') {
+        console.warn('[Scanner] El track de la cámara murió durante el reposo.');
+        return false;
       }
-      const videoEl = document.querySelector('#interactive-scanner video');
-      if (videoEl && videoEl.paused) {
-        videoEl.play().catch(() => {});
-      }
-    } catch (e) {
-      console.warn('[Scanner] Error al reanudar cámara:', e);
     }
+
+    const state = html5QrCode.getState();
+    if (state === Html5QrcodeScannerState.PAUSED) {
+      html5QrCode.resume();
+    }
+    if (videoEl && videoEl.paused) {
+      videoEl.play().catch(() => {});
+    }
+    isPaused = false;
+    isProcessingScan = false;
+    return true;
+  } catch (e) {
+    console.warn('[Scanner] Error al reanudar cámara:', e);
+    return false;
   }
-  isPaused = false;
-  isProcessingScan = false;
 }
 
 /**
@@ -246,13 +275,22 @@ export async function stopScanner() {
       }
     } catch (err) {
       console.warn('[Scanner] Error al detener la cámara:', err);
-    } finally {
-      isScanning = false;
-      isTorchOn = false;
-      isPaused = false;
-      isProcessingScan = false;
     }
+    try {
+      html5QrCode.clear();
+    } catch (e) {}
+    html5QrCode = null;
   }
+
+  const container = document.getElementById('interactive-scanner');
+  if (container) {
+    container.innerHTML = '';
+  }
+
+  isScanning = false;
+  isTorchOn = false;
+  isPaused = false;
+  isProcessingScan = false;
 }
 
 /**

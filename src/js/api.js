@@ -236,13 +236,14 @@ export async function searchSuggestions(query) {
  * @param {number} productData.price Precio en euros (ej: 1.25)
  * @returns {Promise<Object>} El producto creado con su ID generado por la base de datos.
  */
-export async function createProduct({ barcode, name, price }) {
+export async function createProduct({ barcode, name, price, makeGlobal = undefined }) {
   try {
+    const isGlobal = makeGlobal !== undefined ? (Boolean(makeGlobal) && isAdmin()) : isAdmin();
     const payload = {
       barcode: barcode.trim(),
       name: name.trim(),
       price: parseFloat(price),
-      makeGlobal: isAdmin() // Los administradores crean maestros; usuarios estándar crean personales
+      makeGlobal: isGlobal // Si es admin puede elegir; usuarios estándar siempre personal
     };
 
     const response = await secureFetch(`${API_BASE_URL}/products`, {

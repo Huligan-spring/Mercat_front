@@ -96,10 +96,10 @@ export function addProductToCart(product) {
 }
 
 /**
- * Incrementa en 1 unidad la cantidad de un producto.
+ * Incrementa en 1 unidad la cantidad de un producto (por ID o código de barras).
  */
-export function incrementQuantity(productId) {
-  const item = cart.find(i => i.id === productId);
+export function incrementQuantity(identifier) {
+  const item = cart.find(i => i.id === identifier || i.barcode === identifier);
   if (item) {
     item.quantity += 1;
     persistCart();
@@ -108,11 +108,11 @@ export function incrementQuantity(productId) {
 }
 
 /**
- * Reduce en 1 unidad la cantidad de un producto.
+ * Reduce en 1 unidad la cantidad de un producto (por ID o código de barras).
  * Si llega a 0, se elimina automáticamente del carrito.
  */
-export function decrementQuantity(productId) {
-  const index = cart.findIndex(i => i.id === productId);
+export function decrementQuantity(identifier) {
+  const index = cart.findIndex(i => i.id === identifier || i.barcode === identifier);
   if (index >= 0) {
     if (cart[index].quantity > 1) {
       cart[index].quantity -= 1;
@@ -130,12 +130,39 @@ export function decrementQuantity(productId) {
 /**
  * Elimina directamente un producto de la cesta sin importar su cantidad.
  */
-export function removeProduct(productId) {
-  const index = cart.findIndex(i => i.id === productId);
+export function removeProduct(identifier) {
+  const index = cart.findIndex(i => i.id === identifier || i.barcode === identifier);
   if (index >= 0) {
     const removedItem = cart.splice(index, 1)[0];
     persistCart();
     return removedItem;
+  }
+  return null;
+}
+
+/**
+ * Actualiza los datos de un producto en el carrito (nombre, precio, etc.).
+ * Recalcula y persiste en localStorage.
+ * 
+ * @param {Object} updatedData Objeto con { id, barcode, name, price }
+ * @returns {Object|null} El artículo actualizado o null si no se encontró
+ */
+export function updateProductInCart(updatedData) {
+  if (!updatedData) return null;
+
+  const index = cart.findIndex(item => 
+    (updatedData.barcode && item.barcode === updatedData.barcode) || 
+    (updatedData.id && item.id === updatedData.id)
+  );
+
+  if (index >= 0) {
+    if (updatedData.id) cart[index].id = updatedData.id;
+    if (updatedData.name) cart[index].name = updatedData.name.trim();
+    if (updatedData.price !== undefined && !isNaN(updatedData.price)) {
+      cart[index].price = parseFloat(updatedData.price);
+    }
+    persistCart();
+    return cart[index];
   }
   return null;
 }

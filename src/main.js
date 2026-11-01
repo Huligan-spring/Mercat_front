@@ -16,7 +16,7 @@ import './css/style.css';
 import { pingBackend, getProductByBarcode, createProduct, savePurchase, searchSuggestions, loginUser, registerUser, getMyPurchases } from './js/api.js';
 import { getAuthToken, getCurrentUser, isAuthenticated, isAdmin, setSession, clearSession } from './js/auth.js';
 import { startScanner, stopScanner, pauseScanner, resumeScanner, toggleTorch, isScannerRunning, isCameraPaused, resetLastScannedCode } from './js/scanner.js';
-import { loadCart, getCartItems, addProductToCart, incrementQuantity, decrementQuantity, removeProduct, clearCart, calculateTotal, formatEur } from './js/cart.js';
+import { loadCart, getCartItems, addProductToCart, updateProductInCart, incrementQuantity, decrementQuantity, removeProduct, clearCart, calculateTotal, formatEur } from './js/cart.js';
 import { getStoredBudget, saveBudget, evaluateBudget } from './js/budget.js';
 import { initModals, openModal, closeAllModals, showToast, showScannedProductModal } from './js/modals.js';
 
@@ -101,6 +101,17 @@ const newPriceEl = document.getElementById('new-product-price');
 const cancelAddProductBtn = document.getElementById('cancel-add-product-btn');
 const closeAddProductBtn = document.getElementById('close-add-product-modal');
 
+// Formulario de Modificación / Personalización de Producto
+const panelEditProductEl = document.getElementById('panel-edit-product');
+const formEditProductEl = document.getElementById('form-edit-product');
+const editBarcodeEl = document.getElementById('edit-product-barcode');
+const editNameEl = document.getElementById('edit-product-name');
+const editPriceEl = document.getElementById('edit-product-price');
+const editMakeGlobalContainerEl = document.getElementById('edit-make-global-container');
+const editMakeGlobalCheckboxEl = document.getElementById('edit-product-make-global');
+const cancelEditProductBtn = document.getElementById('cancel-edit-product-btn');
+const closeEditProductBtn = document.getElementById('close-edit-product-modal');
+
 // Banner de arranque en Render
 const backendBannerEl = document.getElementById('backend-status-banner');
 const backendStatusTextEl = document.getElementById('backend-status-text');
@@ -173,6 +184,7 @@ function renderCart() {
     cartListEl.innerHTML = items.map((item, index) => `
       <div class="cart-item stagger-item w-full p-space-md rounded-2xl bg-surface-container-lowest shadow-sm flex flex-col gap-2.5 border border-surface-container-high/60 hover:shadow-md transition-all duration-200" 
            data-id="${item.id}" 
+           data-barcode="${item.barcode || ''}"
            style="animation-delay: ${index * 0.04}s;">
         
         <!-- Fila superior: Nombre del producto -->
@@ -188,9 +200,12 @@ function renderCart() {
             ${formatEur(item.price)}/ud
           </span>
 
-          <!-- Controles de cantidad didácticos (+ / - / borrar) -->
-          <div class="flex items-center gap-1.5 bg-surface-container-low p-1 rounded-full">
-            <button type="button" aria-label="Eliminar ${item.name}" class="btn-delete btn-tactile w-7 h-7 rounded-full flex items-center justify-center text-error hover:bg-error-container hover:text-on-error-container transition-all">
+          <!-- Controles didácticos (editar / borrar / - / cantidad / +) -->
+          <div class="flex items-center gap-1 bg-surface-container-low p-1 rounded-full">
+            <button type="button" aria-label="Modificar ${item.name}" class="btn-edit btn-tactile w-7 h-7 rounded-full flex items-center justify-center text-primary hover:bg-primary-container/40 transition-all" title="Modificar precio o nombre">
+              <span class="material-symbols-outlined text-[16px]">edit</span>
+            </button>
+            <button type="button" aria-label="Eliminar ${item.name}" class="btn-delete btn-tactile w-7 h-7 rounded-full flex items-center justify-center text-error hover:bg-error-container hover:text-on-error-container transition-all" title="Eliminar del carrito">
               <span class="material-symbols-outlined text-[16px]">delete_outline</span>
             </button>
             <button type="button" aria-label="Restar una unidad" class="btn-qty-minus btn-tactile w-7 h-7 rounded-full flex items-center justify-center bg-surface-container text-on-surface hover:bg-surface-container-highest transition-all">
@@ -344,7 +359,84 @@ cancelAddProductBtn?.addEventListener('click', cancelNewProduct);
 closeAddProductBtn?.addEventListener('click', cancelNewProduct);
 
 // =========================================================================
-// 6. EVENTOS DE LA CESTA (+ / - / ELIMINAR) CON DELEGACIÓN
+// 5B. EVENTOS: MODIFICACIÓN / PERSONALIZACIÓN DE PRODUCTO DEL CARRITO
+// =========================================================================
+let currentEditingItem = null;
+
+function openEditProductModal(item) {
+  if (!item) return;
+  currentEditingItem = item;
+
+  editBarcodeEl.value = item.barcode || '';
+  editNameEl.value = item.name || '';
+  editPriceEl.value = (item.price !== undefined && !isNaN(item.price)) ? item.price : '';
+
+  if (isAdmin()) {
+    editMakeGlobalContainerEl?.classList.remove('hidden');
+    if (editMakeGlobalCheckboxEl) editMakeGlobalCheckboxEl.checked = false;
+  } else {
+    editMakeGlobalContainerEl?.classList.add('hidden');
+    if (editMakeGlobalCheckboxEl) editMakeGlobalCheckboxEl.checked = false;
+  }
+
+  openModal('panel-edit-product');
+  setTimeout(() => editPriceEl?.focus(), 150);
+}
+
+formEditProductEl?.addEventListener('submit', async (e) => {
+  e.preventDefault();
+
+  const barcode = editBarcodeEl.value.trim();
+  const name = editNameEl.value.trim();
+  const price = parseFloat(editPriceEl.value);
+  const makeGlobal = editMakeGlobalCheckboxEl ? editMakeGlobalCheckboxEl.checked : false;
+
+  if (!barcode || !name || isNaN(price) || price <= 0) {
+    showToast('Por favor, introduce un nombre y precio válidos', 'warning');
+    return;
+  }
+
+  // Intercepción Just-In-Time si no está autenticado
+  if (!isAuthenticated()) {
+    pendingAuthAction = 'editProduct';
+    openAuthModalWithNotice('Inicia sesión o regístrate para guardar productos personalizados en tu catálogo privado.');
+    return;
+  }
+
+  try {
+    showToast('Guardando cambios en el catálogo...', 'cloud_upload');
+    const saved = await createProduct({ barcode, name, price, makeGlobal });
+
+    // Actualizamos el carrito local en memoria y en localStorage
+    updateProductInCart({
+      id: saved.id,
+      barcode: saved.barcode,
+      name: saved.name,
+      price: saved.price
+    });
+    renderCart();
+
+    closeAllModals();
+    currentEditingItem = null;
+
+    const successMsg = makeGlobal
+      ? '¡Producto actualizado en el catálogo maestro!'
+      : '¡Producto guardado en tu catálogo personal!';
+    showToast(successMsg, 'task_alt');
+  } catch (err) {
+    showToast(`Error al guardar: ${err.message}`, 'error');
+  }
+});
+
+function closeEditProduct() {
+  closeAllModals();
+  currentEditingItem = null;
+}
+cancelEditProductBtn?.addEventListener('click', closeEditProduct);
+closeEditProductBtn?.addEventListener('click', closeEditProduct);
+
+// =========================================================================
+// 6. EVENTOS DE LA CESTA (+ / - / EDITAR / ELIMINAR) CON DELEGACIÓN
 // =========================================================================
 cartListEl?.addEventListener('click', (e) => {
   const btn = e.target.closest('button');
@@ -353,14 +445,22 @@ cartListEl?.addEventListener('click', (e) => {
   const card = btn.closest('.cart-item');
   if (!card) return;
 
-  const productId = parseInt(card.getAttribute('data-id'), 10);
-  if (!productId) return;
+  const rawId = card.getAttribute('data-id');
+  const productId = rawId && rawId !== 'undefined' && rawId !== 'null' ? parseInt(rawId, 10) : null;
+  const barcode = card.getAttribute('data-barcode');
 
-  if (btn.classList.contains('btn-qty-plus')) {
-    incrementQuantity(productId);
+  if (!productId && !barcode) return;
+
+  if (btn.classList.contains('btn-edit')) {
+    const item = getCartItems().find(i => (productId && i.id === productId) || (barcode && i.barcode === barcode));
+    if (item) {
+      openEditProductModal(item);
+    }
+  } else if (btn.classList.contains('btn-qty-plus')) {
+    incrementQuantity(productId || barcode);
     renderCart();
   } else if (btn.classList.contains('btn-qty-minus')) {
-    const result = decrementQuantity(productId);
+    const result = decrementQuantity(productId || barcode);
     if (result && result.removed) {
       // Efecto suave de colapso antes de re-renderizar
       card.classList.add('cart-item-collapsing');
@@ -370,7 +470,7 @@ cartListEl?.addEventListener('click', (e) => {
       renderCart();
     }
   } else if (btn.classList.contains('btn-delete')) {
-    const removed = removeProduct(productId);
+    const removed = removeProduct(productId || barcode);
     card.classList.add('cart-item-collapsing');
     setTimeout(renderCart, 280);
     if (removed) {
@@ -1345,6 +1445,8 @@ function handlePendingAuthAction() {
     }
   } else if (action === 'createProduct') {
     openModal('panel-add-product');
+  } else if (action === 'editProduct') {
+    openModal('panel-edit-product');
   }
 }
 

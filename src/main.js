@@ -874,77 +874,28 @@ function renderHistoryDrawer() {
 
     historyItemsContainer.innerHTML = list.map((item, index) => {
       const itemsList = Array.isArray(item.items) ? item.items : [];
-      const hasItems = itemsList.length > 0;
       const ticketIdFormatted = (item.id || '').toString().slice(-4) || (index + 1);
 
       return `
-        <div class="purchase-card rounded-2xl bg-surface-container-lowest border border-surface-container-high shadow-sm overflow-hidden transition-all duration-200" data-purchase-id="${item.id}">
-          
-          <!-- Encabezado de la compra con botón directo de borrar y desplegable -->
-          <div class="flex items-center justify-between p-3.5 hover:bg-surface-container-low transition-colors select-none">
-            <button type="button" class="btn-toggle-ticket flex-1 flex items-center justify-between text-left min-w-0 mr-1.5" data-id="${item.id}">
-              <div class="flex flex-col gap-0.5 min-w-0 pr-2">
-                <div class="flex items-center gap-1.5">
-                  <span class="font-headline-sm text-[16px] text-on-surface font-bold">Compra #${ticketIdFormatted}</span>
-                  <span class="material-symbols-outlined text-[20px] text-primary transition-transform duration-200 ticket-chevron">expand_more</span>
-                </div>
-                <span class="font-body-sm text-on-surface-variant text-[12.5px] truncate">${item.date} • ${item.itemCount || itemsList.reduce((acc, i) => acc + i.quantity, 0)} productos</span>
-              </div>
-              <div class="text-right flex flex-col items-end shrink-0">
-                <span class="font-headline-sm text-[17px] text-primary font-extrabold">${formatEur(item.total)}</span>
-                <span class="text-[12px] text-primary font-semibold flex items-center gap-0.5">
-                  <span>Ver tiquet</span>
-                </span>
-              </div>
-            </button>
-            <button type="button" class="btn-delete-purchase btn-tactile p-2 rounded-xl text-on-surface-variant/70 hover:text-error hover:bg-error/10 transition-colors shrink-0" data-id="${item.id}" title="Eliminar compra">
+        <div class="purchase-card rounded-2xl bg-surface-container-lowest border border-surface-container-high shadow-xs p-3.5 flex items-center justify-between gap-3 hover:bg-surface-container-low transition-colors" data-purchase-id="${item.id}">
+          <button type="button" class="btn-open-receipt flex-1 flex flex-col gap-1 text-left min-w-0 select-none cursor-pointer" data-id="${item.id}">
+            <div class="flex items-center gap-2">
+              <span class="font-headline-sm text-[16px] text-on-surface font-bold">Compra #${ticketIdFormatted}</span>
+              <span class="text-[11.5px] bg-primary/10 text-primary font-semibold px-2 py-0.5 rounded-full">${item.itemCount || itemsList.reduce((acc, i) => acc + i.quantity, 0)} productos</span>
+            </div>
+            <span class="font-body-sm text-on-surface-variant text-[12.5px]">${item.date}</span>
+            <div class="flex items-center gap-1 text-[13px] text-primary font-bold mt-0.5">
+              <span>Ver tíquet completo</span>
+              <span class="material-symbols-outlined text-[17px]">arrow_forward</span>
+            </div>
+          </button>
+
+          <div class="flex flex-col items-end gap-2 shrink-0">
+            <span class="font-headline-sm text-[18px] text-primary font-black">${formatEur(item.total)}</span>
+            <button type="button" class="btn-delete-purchase btn-tactile p-2 rounded-xl text-on-surface-variant/70 hover:text-error hover:bg-error/10 transition-colors" data-id="${item.id}" title="Eliminar compra">
               <span class="material-symbols-outlined text-[20px]">delete</span>
             </button>
           </div>
-
-          <!-- Tíquet detallado desplegable (Grande, espacioso y cómodo) -->
-          <div class="ticket-details hidden border-t border-dashed border-surface-container-high bg-surface-container-low/40 p-4 flex flex-col gap-3 font-sans">
-            
-            <div class="flex items-center justify-between text-on-surface-variant text-[12px] font-mono uppercase tracking-wider pb-1.5 border-b border-surface-container-high">
-              <span>Artículo</span>
-              <span>Uds × Precio • Subtotal</span>
-            </div>
-
-            <!-- Listado de productos comprados: Espacioso con flujo continuo natural -->
-            <div class="ticket-products-list flex flex-col gap-2.5">
-              ${hasItems ? itemsList.map(prod => `
-                <div class="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-surface border border-surface-container-high/60 shadow-xs">
-                  <div class="flex flex-col min-w-0">
-                    <span class="font-bold text-on-surface text-[15px] leading-snug break-words">${prod.name}</span>
-                    <div class="flex items-center gap-1.5 mt-1 text-[13px] text-on-surface-variant">
-                      <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-surface-container-high font-semibold text-on-surface text-[12px]">
-                        ${prod.quantity} ud${prod.quantity > 1 ? 's' : ''}
-                      </span>
-                      <span>× ${formatEur(prod.price)}</span>
-                    </div>
-                  </div>
-                  <span class="font-extrabold text-on-surface text-[16px] shrink-0 text-right">
-                    ${formatEur(prod.price * prod.quantity)}
-                  </span>
-                </div>
-              `).join('') : `
-                <div class="text-on-surface-variant text-[13px] italic text-center py-4">
-                  Desglose de artículos no disponible en este registro anterior.
-                </div>
-              `}
-            </div>
-
-            <!-- Total del Tíquet: Destacado como cierre de la compra -->
-            <div class="border-t-2 border-dashed border-outline-variant/60 pt-3 mt-1 flex items-center justify-between bg-surface-container-lowest p-3.5 rounded-xl border border-surface-container-high shadow-xs">
-              <div class="flex flex-col">
-                <span class="text-[12px] uppercase font-mono text-on-surface-variant font-bold tracking-wider">Total Compra</span>
-                <span class="text-[12px] text-on-surface-variant">${item.date}</span>
-              </div>
-              <span class="font-headline-sm text-[22px] text-primary font-black">${formatEur(item.total)}</span>
-            </div>
-
-          </div>
-
         </div>
       `;
     }).join('');
@@ -953,11 +904,101 @@ function renderHistoryDrawer() {
   }
 }
 
-// Delegación de eventos para el historial: desplegar tiquet y eliminar
+// =========================================================================
+// GESTIÓN DEL TÍQUET A PANTALLA COMPLETA
+// =========================================================================
+const receiptModal = document.getElementById('modal-receipt-fullscreen');
+const receiptModalTitle = document.getElementById('receipt-modal-title');
+const receiptModalSubtitle = document.getElementById('receipt-modal-subtitle');
+const receiptModalBody = document.getElementById('receipt-modal-body');
+const closeReceiptBtn = document.getElementById('close-receipt-modal-btn');
+const closeReceiptX = document.getElementById('close-receipt-modal-x');
+
+function openReceiptModal(purchaseId) {
+  try {
+    const list = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
+    const item = list.find(p => String(p.id) === String(purchaseId));
+    if (!item) return;
+
+    if (!receiptModal || !receiptModalBody) return;
+
+    const itemsList = Array.isArray(item.items) ? item.items : [];
+    const hasItems = itemsList.length > 0;
+    const ticketIdFormatted = (item.id || '').toString().slice(-4) || '0001';
+
+    if (receiptModalTitle) receiptModalTitle.textContent = `Compra #${ticketIdFormatted}`;
+    if (receiptModalSubtitle) receiptModalSubtitle.textContent = `${item.date} • ${item.itemCount || itemsList.reduce((acc, i) => acc + i.quantity, 0)} artículos`;
+
+    receiptModalBody.innerHTML = `
+      <!-- Encabezado estilo recibo de supermercado -->
+      <div class="rounded-2xl bg-surface-container-lowest border border-surface-container-high p-4 flex flex-col items-center gap-1 shadow-xs text-center">
+        <span class="material-symbols-outlined text-primary text-[32px]">storefront</span>
+        <span class="font-headline-sm text-[17px] font-extrabold text-on-surface tracking-wide">MERCAT ASISTENT</span>
+        <span class="text-body-sm text-on-surface-variant text-[12px]">${item.date}</span>
+      </div>
+
+      <!-- Título de sección de artículos -->
+      <div class="flex items-center justify-between text-on-surface-variant text-[12px] font-mono uppercase tracking-wider px-1">
+        <span>Artículo</span>
+        <span>Subtotal</span>
+      </div>
+
+      <!-- Lista de productos en tarjetas amplias y cómodas -->
+      <div class="flex flex-col gap-2.5">
+        ${hasItems ? itemsList.map(prod => `
+          <div class="flex items-center justify-between gap-3 p-3.5 rounded-2xl bg-surface-container-lowest border border-surface-container-high shadow-xs">
+            <div class="flex flex-col min-w-0 pr-2">
+              <span class="font-bold text-on-surface text-[15px] leading-snug break-words">${prod.name}</span>
+              <div class="flex items-center gap-1.5 mt-1.5 text-[13px] text-on-surface-variant">
+                <span class="inline-flex items-center px-2.5 py-0.5 rounded-lg bg-surface-container-high font-bold text-on-surface text-[12px]">
+                  ${prod.quantity} ud${prod.quantity > 1 ? 's' : ''}
+                </span>
+                <span>× ${formatEur(prod.price)}</span>
+              </div>
+            </div>
+            <span class="font-extrabold text-on-surface text-[17px] shrink-0 text-right">
+              ${formatEur(prod.price * prod.quantity)}
+            </span>
+          </div>
+        `).join('') : `
+          <div class="p-6 text-center text-on-surface-variant italic rounded-2xl bg-surface-container-lowest border border-surface-container-high text-[14px]">
+            Desglose de artículos no disponible en este registro anterior.
+          </div>
+        `}
+      </div>
+
+      <!-- Bloque Total Destacado -->
+      <div class="mt-2 rounded-2xl bg-primary/10 border-2 border-primary/20 p-4 flex items-center justify-between shadow-xs">
+        <div class="flex flex-col">
+          <span class="text-[12px] uppercase font-mono text-primary font-bold tracking-wider">TOTAL COMPRA</span>
+          <span class="text-[12px] text-on-surface-variant">${item.itemCount || itemsList.reduce((acc, i) => acc + i.quantity, 0)} productos en total</span>
+        </div>
+        <span class="font-headline-sm text-[26px] text-primary font-black">${formatEur(item.total)}</span>
+      </div>
+    `;
+
+    // Mostrar modal a pantalla completa
+    receiptModal.classList.remove('opacity-0', 'pointer-events-none', 'translate-y-4');
+    receiptModal.classList.add('opacity-100', 'pointer-events-auto', 'translate-y-0');
+    receiptModalBody.scrollTop = 0;
+  } catch (err) {
+    console.warn('[Receipt] Error abriendo tiquet:', err);
+  }
+}
+
+function closeReceiptModal() {
+  if (!receiptModal) return;
+  receiptModal.classList.add('opacity-0', 'pointer-events-none', 'translate-y-4');
+  receiptModal.classList.remove('opacity-100', 'pointer-events-auto', 'translate-y-0');
+}
+
+closeReceiptBtn?.addEventListener('click', closeReceiptModal);
+closeReceiptX?.addEventListener('click', closeReceiptModal);
+
+// Delegación de eventos para el historial: abrir tiquet a pantalla completa o eliminar
 historyItemsContainer?.addEventListener('click', (e) => {
-  const toggleBtn = e.target.closest('.btn-toggle-ticket');
   const deleteBtn = e.target.closest('.btn-delete-purchase');
-  const reloadBtn = e.target.closest('.btn-reload-cart');
+  const openReceiptBtn = e.target.closest('.btn-open-receipt');
 
   if (deleteBtn) {
     e.stopPropagation();
@@ -966,50 +1007,10 @@ historyItemsContainer?.addEventListener('click', (e) => {
     return;
   }
 
-  if (reloadBtn) {
-    e.stopPropagation();
-    const purchaseId = reloadBtn.getAttribute('data-id');
-    reloadPurchaseToCart(purchaseId);
+  if (openReceiptBtn) {
+    const purchaseId = openReceiptBtn.getAttribute('data-id');
+    openReceiptModal(purchaseId);
     return;
-  }
-
-  if (toggleBtn) {
-    const card = toggleBtn.closest('.purchase-card');
-    if (!card) return;
-    const details = card.querySelector('.ticket-details');
-    const chevron = card.querySelector('.ticket-chevron');
-    if (details) {
-      const isOpening = details.classList.contains('hidden');
-
-      // Si se abre este tiquet, cerramos los demás para otorgarle el máximo espacio y foco
-      if (isOpening) {
-        historyItemsContainer.querySelectorAll('.purchase-card').forEach(otherCard => {
-          if (otherCard !== card) {
-            const otherDetails = otherCard.querySelector('.ticket-details');
-            const otherChevron = otherCard.querySelector('.ticket-chevron');
-            if (otherDetails && !otherDetails.classList.contains('hidden')) {
-              otherDetails.classList.add('hidden');
-              if (otherChevron) otherChevron.style.transform = 'rotate(0deg)';
-            }
-          }
-        });
-      }
-
-      details.classList.toggle('hidden', !isOpening);
-      if (chevron) {
-        chevron.style.transform = isOpening ? 'rotate(180deg)' : 'rotate(0deg)';
-      }
-
-      if (isOpening) {
-        setTimeout(() => {
-          const targetOffset = card.offsetTop - historyItemsContainer.offsetTop;
-          historyItemsContainer.scrollTo({
-            top: Math.max(0, targetOffset - 8),
-            behavior: 'smooth'
-          });
-        }, 120);
-      }
-    }
   }
 });
 

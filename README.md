@@ -59,7 +59,7 @@ Al hacer la compra semanal, el consumidor suele enfrentarse a una experiencia fr
 | :--- | :--- |
 | **PWA Mobile-First** | Instalable en pantalla de inicio (Android / iOS), tema inmersivo `#00652c`, standalone sin barras de navegación del explorador. |
 | **Escáner Omnidireccional** | Lector simétrico 260×260 con motor ZXing enfocado en EAN-13, EAN-8, UPC-A, QR Code y Data Matrix. |
-| **Soporte GS1 Mercadona** | Decodificación nativa de QR GS1 Digital Link en carnicería y pescadería, extrayendo GTIN y precio variable inyectado. |
+| **Soporte GS1 Digital Link** | Decodificación nativa de QR GS1 Digital Link en carnicería y pescadería, extrayendo GTIN y precio variable inyectado. |
 | **Feedback Sensorial** | Pitido (*Beep*) sintético a 1800 Hz generado en tiempo real vía Web Audio API + vibración háptica de 90 ms. |
 | **Ahorro de Batería (10 FPS)** | Reduce el uso de CPU en un 50%, con suspensión en segundo plano (*Page Visibility API*) y reposo inteligente tras 2 min. |
 | **Reactivación Automática** | Recuperación transparente de la cámara si el sistema operativo finaliza el stream de vídeo en reposo. |
@@ -115,9 +115,9 @@ flowchart TD
 A diferencia de los lectores convencionales que obligan al usuario a alinear el código perfectamente horizontal, Mercat Asistent implementa un visor cuadrado simétrico (`qrbox: 260x260` con relación de aspecto `1.0`). Esto permite que el motor de decodificación analice las líneas del código de barras tanto en horizontal como en vertical o en ángulos diagonales, reduciendo drásticamente el tiempo de reconocimiento.
 
 ### Decodificación de QR Dinámicos de Peso Variable
-En productos de charcutería, carne o pescado envasados al peso (como los de Mercadona), el etiquetado no utiliza un EAN estándar de precio fijo, sino un **código QR dinámico GS1 Digital Link**:
+En productos de charcutería, carne o pescado envasados al peso en supermercados, el etiquetado no utiliza un EAN estándar de precio fijo, sino un **código QR dinámico GS1 Digital Link**:
 ```text
-https://qrtrack.mercadona.es/01/08436581961300/...&3922=00415
+https://id.gs1.org/01/08436581961300/...&3922=00415
 ```
 Mercat Asistent analiza la cadena en tiempo real mediante expresiones regulares optimizadas:
 1. Extrae el identificador global de producto (**GTIN** `08436581961300`).

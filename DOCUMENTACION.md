@@ -24,7 +24,7 @@ Documentación técnica y funcional de **Mercat Asistent**, una Progressive Web 
 
 ## 1. ¿Qué es Mercat Asistent?
 
-**Mercat Asistent** es un asistente de compras inteligente enfocado a supermercados (inspirado en la experiencia de compra en Mercadona). 
+**Mercat Asistent** es un asistente de compras inteligente enfocado a supermercados y tiendas de alimentación. 
 
 Permite que el comprador, usando la cámara de su propio smartphone:
 1. **Escanee el código de barras (EAN-13)** de cada producto antes de introducirlo en el carrito físico.
@@ -232,7 +232,7 @@ El proyecto se estructura en módulos especializados para mantener una arquitect
 3. **`src/js/scanner.js` (Motor de Cámara y Visor Óptico):**
    - Controla la cámara y la decodificación omnidireccional en tiempo real mediante `html5-qrcode`.
    - Implementa encuadre cuadrado (`aspectRatio: 1.0`) y ventana de lectura simétrica (`qrbox: 260x260`) con motor ZXing enfocado en formatos de supermercado (`EAN-13`, `EAN-8`, `UPC-A`, `QR_CODE`, `DATA_MATRIX`).
-   - Decodifica códigos QR dinámicos de Mercadona (GS1 Digital Link para productos de peso variable en carne/pescado), extrayendo el GTIN y el precio inyectado.
+   - Decodifica códigos QR dinámicos estándar GS1 Digital Link para productos de peso variable en carnicería y pescadería, extrayendo el GTIN y el precio inyectado.
    - Incorpora protección anti-duplicados: pausa inmediata al detectar el producto, reanudación automática tras 1.8 segundos y tiempo de enfriamiento de 3.5 segundos.
    - Proporciona control de encendido/apagado con liberación completa del hardware de la cámara (`stopScanner`), permitiendo que el usuario alterne sin conflicto hacia lectores de códigos nativos de Android.
    - Optimización integral de batería: opera a 10 FPS eficientes (ahorrando un 50% de CPU), suspensión automática cuando la pantalla se apaga o la app pasa a segundo plano (Page Visibility API), y reposo tras 2 minutos de inactividad.

@@ -291,10 +291,10 @@
     </div>
 
     <!-- MODAL 3: Guía de uso rápido didáctica -->
-    <div id="panel-guide" data-drawer-panel class="absolute inset-x-0 bottom-0 max-h-[85vh] rounded-t-2xl bg-surface p-space-md shadow-2xl flex flex-col gap-3 transition-transform duration-300 translate-y-full">
-      <div class="flex items-center justify-between border-b border-surface-container-high pb-2">
+    <div id="panel-guide" data-drawer-panel class="absolute inset-x-0 bottom-0 max-h-[88vh] rounded-t-2xl bg-surface p-space-md shadow-2xl flex flex-col gap-3 transition-transform duration-300 translate-y-full">
+      <div class="flex items-center justify-between border-b border-surface-container-high pb-2 shrink-0">
         <div class="flex items-center gap-2">
-          <span class="material-symbols-outlined text-primary text-[22px]">help_outline</span>
+          <span class="material-symbols-outlined text-primary text-[24px]">help_outline</span>
           <span class="font-headline-sm text-headline-sm text-on-surface font-bold">Guía de uso didáctica</span>
         </div>
         <button id="close-guide-modal" type="button" class="btn-tactile w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-container text-on-surface-variant">
@@ -302,38 +302,92 @@
         </button>
       </div>
 
-      <div class="flex flex-col gap-3 py-1 overflow-y-auto max-h-72">
-        <div class="flex items-start gap-3 p-3 rounded-xl bg-surface-container-lowest border border-surface-container-high">
-          <div class="w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-bold text-label-md shrink-0">1</div>
-          <div>
-            <div class="font-headline-sm text-[15px] font-bold text-on-surface">Apunta con la cámara</div>
-            <p class="font-body-sm text-on-surface-variant mt-0.5">Enfoca el código de barras (EAN-13) del producto en el recuadro verde. Sonará un pitido al reconocerlo.</p>
+      <div class="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3 py-1 pb-10 pr-1 overscroll-contain">
+        
+        <!-- Paso 1 -->
+        <div class="flex items-start gap-3 p-3.5 rounded-2xl bg-surface-container-lowest border border-surface-container-high shadow-xs">
+          <div class="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold text-label-md shrink-0 shadow-xs">1</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-1.5 font-headline-sm text-[15px] font-bold text-on-surface">
+              <span class="material-symbols-outlined text-primary text-[18px]">qr_code_scanner</span>
+              <span>Apunta y escanea con la cámara</span>
+            </div>
+            <p class="font-body-sm text-on-surface-variant text-[13px] mt-1 leading-relaxed">
+              Enfoca el código de barras (EAN-13, EAN-8) o el código QR de productos al peso (carne, pescado, charcutería). La aplicación pitará y añadirá el artículo automáticamente a tu cesta.
+            </p>
           </div>
         </div>
 
-        <div class="flex items-start gap-3 p-3 rounded-xl bg-surface-container-lowest border border-surface-container-high">
-          <div class="w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-bold text-label-md shrink-0">2</div>
-          <div>
-            <div class="font-headline-sm text-[15px] font-bold text-on-surface">¿No existe el producto?</div>
-            <p class="font-body-sm text-on-surface-variant mt-0.5">Si es un producto nuevo en Mercadona, podrás escribir su nombre y precio para guardarlo en la base de datos.</p>
+        <!-- Paso 2 -->
+        <div class="flex items-start gap-3 p-3.5 rounded-2xl bg-surface-container-lowest border border-surface-container-high shadow-xs">
+          <div class="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold text-label-md shrink-0 shadow-xs">2</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-1.5 font-headline-sm text-[15px] font-bold text-on-surface">
+              <span class="material-symbols-outlined text-primary text-[18px]">add_circle</span>
+              <span>¿Producto nuevo o no registrado?</span>
+            </div>
+            <p class="font-body-sm text-on-surface-variant text-[13px] mt-1 leading-relaxed">
+              Si escaneas un código que aún no está en el catálogo de la tienda o supermercado, se abrirá un formulario inmediato para que indiques su nombre y precio. ¡Quedará registrado para siempre!
+            </p>
           </div>
         </div>
 
-        <div class="flex items-start gap-3 p-3 rounded-xl bg-surface-container-lowest border border-surface-container-high">
-          <div class="w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-bold text-label-md shrink-0">3</div>
-          <div>
-            <div class="font-headline-sm text-[15px] font-bold text-on-surface">Controla tu presupuesto</div>
-            <p class="font-body-sm text-on-surface-variant mt-0.5">La barra inferior cambiará a amarillo y rojo cuando te acerques o superes el límite que te has propuesto gastar.</p>
+        <!-- Paso 3 -->
+        <div class="flex items-start gap-3 p-3.5 rounded-2xl bg-surface-container-lowest border border-surface-container-high shadow-xs">
+          <div class="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold text-label-md shrink-0 shadow-xs">3</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-1.5 font-headline-sm text-[15px] font-bold text-on-surface">
+              <span class="material-symbols-outlined text-primary text-[18px]">edit</span>
+              <span>Personaliza precios y nombres (Lápiz)</span>
+            </div>
+            <p class="font-body-sm text-on-surface-variant text-[13px] mt-1 leading-relaxed">
+              ¿Ha cambiado el precio en el lineal o prefieres renombrar un producto? Toca el icono del lápiz junto a la papelera en tu cesta para modificarlo. Tu versión personalizada tendrá prioridad en tus compras.
+            </p>
           </div>
         </div>
 
-        <div class="flex items-start gap-3 p-3 rounded-xl bg-surface-container-lowest border border-surface-container-high">
-          <div class="w-8 h-8 rounded-full bg-primary-container text-on-primary flex items-center justify-center font-bold text-label-md shrink-0">4</div>
-          <div>
-            <div class="font-headline-sm text-[15px] font-bold text-on-surface">Guarda tu compra</div>
-            <p class="font-body-sm text-on-surface-variant mt-0.5">Al terminar en caja, pulsa 'Guardar compra' para registrar tu compra y vaciar el carro.</p>
+        <!-- Paso 4 -->
+        <div class="flex items-start gap-3 p-3.5 rounded-2xl bg-surface-container-lowest border border-surface-container-high shadow-xs">
+          <div class="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold text-label-md shrink-0 shadow-xs">4</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-1.5 font-headline-sm text-[15px] font-bold text-on-surface">
+              <span class="material-symbols-outlined text-primary text-[18px]">savings</span>
+              <span>Control visual de tu presupuesto</span>
+            </div>
+            <p class="font-body-sm text-on-surface-variant text-[13px] mt-1 leading-relaxed">
+              Establece tu presupuesto en la sección "Mi Presupuesto". La barra inferior cambiará de color: verde (dentro del objetivo), amarillo (te acercas al límite) y rojo (si lo has superado).
+            </p>
           </div>
         </div>
+
+        <!-- Paso 5 -->
+        <div class="flex items-start gap-3 p-3.5 rounded-2xl bg-surface-container-lowest border border-surface-container-high shadow-xs">
+          <div class="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold text-label-md shrink-0 shadow-xs">5</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-1.5 font-headline-sm text-[15px] font-bold text-on-surface">
+              <span class="material-symbols-outlined text-primary text-[18px]">checklist</span>
+              <span>Lista previa de la compra</span>
+            </div>
+            <p class="font-body-sm text-on-surface-variant text-[13px] mt-1 leading-relaxed">
+              Planifica lo que necesitas antes de salir de casa en "Lista previa". A medida que recorras la tienda y llenes tu carro, podrás consultar y marcar tus tareas pendientes para que no se te olvide nada.
+            </p>
+          </div>
+        </div>
+
+        <!-- Paso 6 -->
+        <div class="flex items-start gap-3 p-3.5 rounded-2xl bg-surface-container-lowest border border-surface-container-high shadow-xs">
+          <div class="w-8 h-8 rounded-full bg-primary text-on-primary flex items-center justify-center font-bold text-label-md shrink-0 shadow-xs">6</div>
+          <div class="flex-1 min-w-0">
+            <div class="flex items-center gap-1.5 font-headline-sm text-[15px] font-bold text-on-surface">
+              <span class="material-symbols-outlined text-primary text-[18px]">receipt_long</span>
+              <span>Tíquet digital y registro de compras</span>
+            </div>
+            <p class="font-body-sm text-on-surface-variant text-[13px] mt-1 leading-relaxed">
+              Al pasar por caja, pulsa "Guardar compra" para registrar la transacción y vaciar la cesta. Podrás abrir en cualquier momento tu tíquet digital a pantalla completa con el desglose exacto de cada artículo.
+            </p>
+          </div>
+        </div>
+
       </div>
     </div>
 

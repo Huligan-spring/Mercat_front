@@ -26,7 +26,7 @@ let lastScannedCode = null;
 let lastScannedTimestamp = 0;
 const DUPLICATE_COOLDOWN_MS = 3500; // 3.5 segundos de enfriamiento para el MISMO código continuo
 
-// Formatos optimizados para supermercado (EAN-13, EAN-8, UPC-A y QR/DataMatrix GS1 Mercadona)
+// Formatos optimizados para supermercado (EAN-13, EAN-8, UPC-A y QR/DataMatrix GS1 estándar)
 const BARCODE_FORMATS = [
   Html5QrcodeSupportedFormats.EAN_13,
   Html5QrcodeSupportedFormats.EAN_8,
@@ -121,8 +121,8 @@ export async function startScanner(elementId, onCodeDetected, onError) {
       let barcode = decodedText.trim();
       let injectedPrice = null;
 
-      // Soporte para códigos QR GS1 Digital Link de Mercadona (bandejas de carne y pescado)
-      // Ejemplo: https://qrtrack.mercadona.es/01/08436581961300/...&3922=00415
+      // Soporte para códigos QR GS1 Digital Link estándar de supermercado (bandejas de carne y pescado al peso)
+      // Formato estándar: https://.../01/{gtin}/...&3922={precio_en_centimos}
       if (barcode.startsWith('http') && barcode.includes('/01/')) {
         const gtinMatch = barcode.match(/\/01\/(\d+)/);
         if (gtinMatch && gtinMatch[1]) {

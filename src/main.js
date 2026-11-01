@@ -910,8 +910,8 @@ function renderHistoryDrawer() {
               <span>Uds × Precio • Subtotal</span>
             </div>
 
-            <!-- Listado de productos comprados: Espacioso con scroll amplio -->
-            <div class="ticket-products-list flex flex-col gap-2.5 max-h-[50vh] overflow-y-auto pr-1">
+            <!-- Listado de productos comprados: Espacioso con flujo continuo natural -->
+            <div class="ticket-products-list flex flex-col gap-2.5">
               ${hasItems ? itemsList.map(prod => `
                 <div class="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-surface border border-surface-container-high/60 shadow-xs">
                   <div class="flex flex-col min-w-0">
@@ -934,27 +934,13 @@ function renderHistoryDrawer() {
               `}
             </div>
 
-            <!-- Total del Tíquet: Gran visibilidad -->
-            <div class="border-t-2 border-dashed border-outline-variant/60 pt-3 mt-1 flex items-center justify-between bg-surface-container-lowest p-3 rounded-xl border border-surface-container-high">
+            <!-- Total del Tíquet: Destacado como cierre de la compra -->
+            <div class="border-t-2 border-dashed border-outline-variant/60 pt-3 mt-1 flex items-center justify-between bg-surface-container-lowest p-3.5 rounded-xl border border-surface-container-high shadow-xs">
               <div class="flex flex-col">
                 <span class="text-[12px] uppercase font-mono text-on-surface-variant font-bold tracking-wider">Total Compra</span>
                 <span class="text-[12px] text-on-surface-variant">${item.date}</span>
               </div>
               <span class="font-headline-sm text-[22px] text-primary font-black">${formatEur(item.total)}</span>
-            </div>
-
-            <!-- Acciones del Tíquet: Cargar de nuevo o Borrar -->
-            <div class="flex items-center justify-between pt-2 border-t border-surface-container-high/60 gap-3">
-              ${hasItems ? `
-                <button type="button" class="btn-reload-cart btn-tactile bg-primary/10 hover:bg-primary/20 text-primary text-[13px] font-bold py-2.5 px-4 rounded-xl flex items-center gap-1.5 transition-colors" data-id="${item.id}">
-                  <span class="material-symbols-outlined text-[18px]">restart_alt</span>
-                  <span>Repetir cesta</span>
-                </button>
-              ` : '<div></div>'}
-              <button type="button" class="btn-delete-purchase btn-tactile text-error hover:bg-error/10 text-[13px] font-semibold py-2.5 px-3.5 rounded-xl flex items-center gap-1.5 transition-colors" data-id="${item.id}">
-                <span class="material-symbols-outlined text-[18px]">delete</span>
-                <span>Eliminar compra</span>
-              </button>
             </div>
 
           </div>
@@ -967,7 +953,7 @@ function renderHistoryDrawer() {
   }
 }
 
-// Delegación de eventos para el historial: desplegar tiquet, repetir cesta y eliminar
+// Delegación de eventos para el historial: desplegar tiquet y eliminar
 historyItemsContainer?.addEventListener('click', (e) => {
   const toggleBtn = e.target.closest('.btn-toggle-ticket');
   const deleteBtn = e.target.closest('.btn-delete-purchase');
@@ -1016,7 +1002,11 @@ historyItemsContainer?.addEventListener('click', (e) => {
 
       if (isOpening) {
         setTimeout(() => {
-          card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+          const targetOffset = card.offsetTop - historyItemsContainer.offsetTop;
+          historyItemsContainer.scrollTo({
+            top: Math.max(0, targetOffset - 8),
+            behavior: 'smooth'
+          });
         }, 120);
       }
     }

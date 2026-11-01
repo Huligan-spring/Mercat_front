@@ -274,10 +274,10 @@
     </div>
 
     <!-- MODAL 2: Historial de compras -->
-    <div id="panel-history" data-drawer-panel class="absolute inset-x-0 bottom-0 max-h-[85vh] rounded-t-2xl bg-surface p-space-md shadow-2xl flex flex-col gap-3 transition-transform duration-300 translate-y-full">
-      <div class="flex items-center justify-between border-b border-surface-container-high pb-2">
+    <div id="panel-history" data-drawer-panel class="absolute inset-x-0 bottom-0 h-[92vh] max-h-[94vh] rounded-t-2xl bg-surface p-space-md shadow-2xl flex flex-col gap-3 transition-transform duration-300 translate-y-full overflow-hidden">
+      <div class="flex items-center justify-between border-b border-surface-container-high pb-2 shrink-0">
         <div class="flex items-center gap-2">
-          <span class="material-symbols-outlined text-primary text-[22px]">receipt_long</span>
+          <span class="material-symbols-outlined text-primary text-[24px]">receipt_long</span>
           <span class="font-headline-sm text-headline-sm text-on-surface font-bold">Historial de compras</span>
         </div>
         <button id="close-history-modal" type="button" class="btn-tactile w-8 h-8 rounded-full flex items-center justify-center hover:bg-surface-container text-on-surface-variant">
@@ -285,7 +285,7 @@
         </button>
       </div>
 
-      <div id="history-items-container" class="flex flex-col gap-2.5 overflow-y-auto max-h-[60vh] py-1">
+      <div id="history-items-container" class="flex-1 min-h-0 overflow-y-auto flex flex-col gap-3 py-1 pr-1 overscroll-contain">
         <!-- Compras guardadas en la base de datos o localmente -->
       </div>
     </div>

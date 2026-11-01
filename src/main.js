@@ -798,22 +798,44 @@ budgetNumericInputEl?.addEventListener('change', (e) => {
 // 10. HISTORIAL LOCAL Y LISTA DE LA COMPRA PREVIA
 // =========================================================================
 const HISTORY_KEY = 'mercat_purchase_history';
+const DELETED_PURCHASES_KEY = 'mercat_deleted_purchases';
 const historyItemsContainer = document.getElementById('history-items-container');
+
+function getDeletedPurchaseIds() {
+  try {
+    return JSON.parse(localStorage.getItem(DELETED_PURCHASES_KEY) || '[]');
+  } catch (e) {
+    return [];
+  }
+}
+
+function recordDeletedPurchaseId(id) {
+  try {
+    const list = getDeletedPurchaseIds();
+    const strId = String(id);
+    if (!list.includes(strId)) {
+      list.push(strId);
+      localStorage.setItem(DELETED_PURCHASES_KEY, JSON.stringify(list));
+    }
+  } catch (e) {}
+}
 
 function saveToLocalHistory(entry) {
   try {
     const list = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
     list.unshift(entry);
-    localStorage.setItem(HISTORY_KEY, JSON.stringify(list.slice(0, 20))); // Máximo 20 compras
+    localStorage.setItem(HISTORY_KEY, JSON.stringify(list.slice(0, 30))); // Máximo 30 compras
     renderHistoryDrawer();
   } catch (e) {}
 }
 
 function deletePurchaseFromHistory(purchaseId) {
   try {
+    const targetId = String(purchaseId);
     const list = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-    const filtered = list.filter(item => item.id !== purchaseId);
+    const filtered = list.filter(item => String(item.id) !== targetId);
     localStorage.setItem(HISTORY_KEY, JSON.stringify(filtered));
+    recordDeletedPurchaseId(targetId);
     renderHistoryDrawer();
     showToast('Compra eliminada del historial', 'delete_outline');
   } catch (e) {}
@@ -821,8 +843,9 @@ function deletePurchaseFromHistory(purchaseId) {
 
 function reloadPurchaseToCart(purchaseId) {
   try {
+    const targetId = String(purchaseId);
     const list = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
-    const found = list.find(item => item.id === purchaseId);
+    const found = list.find(item => String(item.id) === targetId);
     if (found && Array.isArray(found.items) && found.items.length > 0) {
       found.items.forEach(prod => {
         addProductToCart(prod);
@@ -841,9 +864,9 @@ function renderHistoryDrawer() {
     const list = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
     if (list.length === 0) {
       historyItemsContainer.innerHTML = `
-        <div class="text-center py-8 text-on-surface-variant flex flex-col items-center gap-2">
-          <span class="material-symbols-outlined text-[36px] text-outline-variant">receipt_long</span>
-          <span class="text-body-sm font-medium">Aún no has guardado ninguna compra.</span>
+        <div class="text-center py-10 text-on-surface-variant flex flex-col items-center gap-2">
+          <span class="material-symbols-outlined text-[42px] text-outline-variant">receipt_long</span>
+          <span class="text-body-md font-medium">Aún no has guardado ninguna compra.</span>
         </div>
       `;
       return;
@@ -857,70 +880,80 @@ function renderHistoryDrawer() {
       return `
         <div class="purchase-card rounded-2xl bg-surface-container-lowest border border-surface-container-high shadow-sm overflow-hidden transition-all duration-200" data-purchase-id="${item.id}">
           
-          <!-- Encabezado de la compra (Tocar para expandir/colapsar detalles) -->
-          <button type="button" class="btn-toggle-ticket w-full p-3.5 flex items-center justify-between text-left hover:bg-surface-container-low transition-colors select-none" data-id="${item.id}">
-            <div class="flex flex-col gap-0.5 min-w-0 pr-2">
-              <div class="flex items-center gap-1.5">
-                <span class="font-headline-sm text-[15px] text-on-surface font-bold">Compra #${ticketIdFormatted}</span>
-                <span class="material-symbols-outlined text-[18px] text-primary transition-transform duration-200 ticket-chevron">expand_more</span>
+          <!-- Encabezado de la compra con botón directo de borrar y desplegable -->
+          <div class="flex items-center justify-between p-3.5 hover:bg-surface-container-low transition-colors select-none">
+            <button type="button" class="btn-toggle-ticket flex-1 flex items-center justify-between text-left min-w-0 mr-1.5" data-id="${item.id}">
+              <div class="flex flex-col gap-0.5 min-w-0 pr-2">
+                <div class="flex items-center gap-1.5">
+                  <span class="font-headline-sm text-[16px] text-on-surface font-bold">Compra #${ticketIdFormatted}</span>
+                  <span class="material-symbols-outlined text-[20px] text-primary transition-transform duration-200 ticket-chevron">expand_more</span>
+                </div>
+                <span class="font-body-sm text-on-surface-variant text-[12.5px] truncate">${item.date} • ${item.itemCount || itemsList.reduce((acc, i) => acc + i.quantity, 0)} productos</span>
               </div>
-              <span class="font-body-sm text-on-surface-variant text-[12px] truncate">${item.date} • ${item.itemCount || itemsList.reduce((acc, i) => acc + i.quantity, 0)} productos</span>
-            </div>
-            <div class="text-right flex flex-col items-end shrink-0">
-              <span class="font-headline-sm text-[16px] text-primary font-bold">${formatEur(item.total)}</span>
-              <span class="text-[11px] text-primary font-medium flex items-center gap-0.5">
-                <span>Ver tiquet</span>
-              </span>
-            </div>
-          </button>
+              <div class="text-right flex flex-col items-end shrink-0">
+                <span class="font-headline-sm text-[17px] text-primary font-extrabold">${formatEur(item.total)}</span>
+                <span class="text-[12px] text-primary font-semibold flex items-center gap-0.5">
+                  <span>Ver tiquet</span>
+                </span>
+              </div>
+            </button>
+            <button type="button" class="btn-delete-purchase btn-tactile p-2 rounded-xl text-on-surface-variant/70 hover:text-error hover:bg-error/10 transition-colors shrink-0" data-id="${item.id}" title="Eliminar compra">
+              <span class="material-symbols-outlined text-[20px]">delete</span>
+            </button>
+          </div>
 
-          <!-- Tíquet detallado desplegable -->
-          <div class="ticket-details hidden border-t border-dashed border-surface-container-high bg-surface-container-low/30 p-3.5 flex flex-col gap-2.5 font-sans">
+          <!-- Tíquet detallado desplegable (Grande, espacioso y cómodo) -->
+          <div class="ticket-details hidden border-t border-dashed border-surface-container-high bg-surface-container-low/40 p-4 flex flex-col gap-3 font-sans">
             
-            <div class="flex items-center justify-between text-on-surface-variant text-[11px] font-mono uppercase tracking-wider pb-1 border-b border-surface-container-high">
+            <div class="flex items-center justify-between text-on-surface-variant text-[12px] font-mono uppercase tracking-wider pb-1.5 border-b border-surface-container-high">
               <span>Artículo</span>
-              <span>Uds x Precio • Subtotal</span>
+              <span>Uds × Precio • Subtotal</span>
             </div>
 
-            <!-- Listado de productos comprados -->
-            <div class="flex flex-col gap-2">
+            <!-- Listado de productos comprados: Espacioso con scroll amplio -->
+            <div class="ticket-products-list flex flex-col gap-2.5 max-h-[50vh] overflow-y-auto pr-1">
               ${hasItems ? itemsList.map(prod => `
-                <div class="flex items-center justify-between gap-2 text-body-sm">
+                <div class="flex items-center justify-between gap-3 p-2.5 rounded-xl bg-surface border border-surface-container-high/60 shadow-xs">
                   <div class="flex flex-col min-w-0">
-                    <span class="font-semibold text-on-surface text-[13px] truncate">${prod.name}</span>
-                    <span class="text-on-surface-variant text-[11px]">${prod.quantity} ud${prod.quantity > 1 ? 's' : ''} x ${formatEur(prod.price)}</span>
+                    <span class="font-bold text-on-surface text-[15px] leading-snug break-words">${prod.name}</span>
+                    <div class="flex items-center gap-1.5 mt-1 text-[13px] text-on-surface-variant">
+                      <span class="inline-flex items-center px-2 py-0.5 rounded-md bg-surface-container-high font-semibold text-on-surface text-[12px]">
+                        ${prod.quantity} ud${prod.quantity > 1 ? 's' : ''}
+                      </span>
+                      <span>× ${formatEur(prod.price)}</span>
+                    </div>
                   </div>
-                  <span class="font-bold text-on-surface text-[13px] shrink-0 text-right">
+                  <span class="font-extrabold text-on-surface text-[16px] shrink-0 text-right">
                     ${formatEur(prod.price * prod.quantity)}
                   </span>
                 </div>
               `).join('') : `
-                <div class="text-on-surface-variant text-[12px] italic text-center py-1">
+                <div class="text-on-surface-variant text-[13px] italic text-center py-4">
                   Desglose de artículos no disponible en este registro anterior.
                 </div>
               `}
             </div>
 
-            <!-- Total del Tíquet -->
-            <div class="border-t border-dashed border-outline-variant/60 pt-2.5 mt-1 flex items-center justify-between">
+            <!-- Total del Tíquet: Gran visibilidad -->
+            <div class="border-t-2 border-dashed border-outline-variant/60 pt-3 mt-1 flex items-center justify-between bg-surface-container-lowest p-3 rounded-xl border border-surface-container-high">
               <div class="flex flex-col">
-                <span class="text-[11px] uppercase font-mono text-on-surface-variant font-bold">Total Compra</span>
-                <span class="text-[11px] text-on-surface-variant">${item.date}</span>
+                <span class="text-[12px] uppercase font-mono text-on-surface-variant font-bold tracking-wider">Total Compra</span>
+                <span class="text-[12px] text-on-surface-variant">${item.date}</span>
               </div>
-              <span class="font-headline-sm text-[17px] text-primary font-extrabold">${formatEur(item.total)}</span>
+              <span class="font-headline-sm text-[22px] text-primary font-black">${formatEur(item.total)}</span>
             </div>
 
             <!-- Acciones del Tíquet: Cargar de nuevo o Borrar -->
-            <div class="flex items-center justify-between pt-2 border-t border-surface-container-high/60 gap-2">
+            <div class="flex items-center justify-between pt-2 border-t border-surface-container-high/60 gap-3">
               ${hasItems ? `
-                <button type="button" class="btn-reload-cart btn-tactile text-primary hover:bg-primary/10 text-[12px] font-semibold py-1.5 px-3 rounded-lg flex items-center gap-1 transition-colors" data-id="${item.id}">
-                  <span class="material-symbols-outlined text-[16px]">restart_alt</span>
+                <button type="button" class="btn-reload-cart btn-tactile bg-primary/10 hover:bg-primary/20 text-primary text-[13px] font-bold py-2.5 px-4 rounded-xl flex items-center gap-1.5 transition-colors" data-id="${item.id}">
+                  <span class="material-symbols-outlined text-[18px]">restart_alt</span>
                   <span>Repetir cesta</span>
                 </button>
               ` : '<div></div>'}
-              <button type="button" class="btn-delete-purchase btn-tactile text-error hover:bg-error/10 text-[12px] font-medium py-1.5 px-2.5 rounded-lg flex items-center gap-1 transition-colors" data-id="${item.id}">
-                <span class="material-symbols-outlined text-[16px]">delete</span>
-                <span>Eliminar</span>
+              <button type="button" class="btn-delete-purchase btn-tactile text-error hover:bg-error/10 text-[13px] font-semibold py-2.5 px-3.5 rounded-xl flex items-center gap-1.5 transition-colors" data-id="${item.id}">
+                <span class="material-symbols-outlined text-[18px]">delete</span>
+                <span>Eliminar compra</span>
               </button>
             </div>
 
@@ -942,14 +975,14 @@ historyItemsContainer?.addEventListener('click', (e) => {
 
   if (deleteBtn) {
     e.stopPropagation();
-    const purchaseId = parseInt(deleteBtn.getAttribute('data-id'), 10);
+    const purchaseId = deleteBtn.getAttribute('data-id');
     deletePurchaseFromHistory(purchaseId);
     return;
   }
 
   if (reloadBtn) {
     e.stopPropagation();
-    const purchaseId = parseInt(reloadBtn.getAttribute('data-id'), 10);
+    const purchaseId = reloadBtn.getAttribute('data-id');
     reloadPurchaseToCart(purchaseId);
     return;
   }
@@ -960,10 +993,31 @@ historyItemsContainer?.addEventListener('click', (e) => {
     const details = card.querySelector('.ticket-details');
     const chevron = card.querySelector('.ticket-chevron');
     if (details) {
-      const isHidden = details.classList.contains('hidden');
-      details.classList.toggle('hidden', !isHidden);
+      const isOpening = details.classList.contains('hidden');
+
+      // Si se abre este tiquet, cerramos los demás para otorgarle el máximo espacio y foco
+      if (isOpening) {
+        historyItemsContainer.querySelectorAll('.purchase-card').forEach(otherCard => {
+          if (otherCard !== card) {
+            const otherDetails = otherCard.querySelector('.ticket-details');
+            const otherChevron = otherCard.querySelector('.ticket-chevron');
+            if (otherDetails && !otherDetails.classList.contains('hidden')) {
+              otherDetails.classList.add('hidden');
+              if (otherChevron) otherChevron.style.transform = 'rotate(0deg)';
+            }
+          }
+        });
+      }
+
+      details.classList.toggle('hidden', !isOpening);
       if (chevron) {
-        chevron.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
+        chevron.style.transform = isOpening ? 'rotate(180deg)' : 'rotate(0deg)';
+      }
+
+      if (isOpening) {
+        setTimeout(() => {
+          card.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }, 120);
       }
     }
   }
@@ -1625,13 +1679,17 @@ async function syncRemotePurchasesInBackground() {
     const remotePurchases = await getMyPurchases();
     if (!Array.isArray(remotePurchases)) return;
 
+    const deletedIds = new Set(getDeletedPurchaseIds().map(String));
     const localList = JSON.parse(localStorage.getItem(HISTORY_KEY) || '[]');
     const mapById = new Map();
 
-    // 1. Guardar primero los remotos mapeados
+    // 1. Guardar primero los remotos mapeados (excluyendo los que el usuario eliminó)
     remotePurchases.forEach(p => {
+      const pIdStr = String(p.id);
+      if (deletedIds.has(pIdStr)) return;
+
       const pItems = Array.isArray(p.items) ? p.items : [];
-      mapById.set(p.id, {
+      mapById.set(pIdStr, {
         id: p.id,
         date: p.purchasedAt
           ? new Date(p.purchasedAt).toLocaleDateString('es-ES', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' })
@@ -1648,15 +1706,16 @@ async function syncRemotePurchasesInBackground() {
       });
     });
 
-    // 2. Si hay compras locales que no están en el mapa remoto, conservarlas
+    // 2. Si hay compras locales que no están en el mapa remoto y no han sido eliminadas, conservarlas
     localList.forEach(loc => {
-      if (!mapById.has(loc.id)) {
-        mapById.set(loc.id, loc);
+      const locIdStr = String(loc.id);
+      if (!deletedIds.has(locIdStr) && !mapById.has(locIdStr)) {
+        mapById.set(locIdStr, loc);
       }
     });
 
     // 3. Convertir de nuevo a array ordenado por id descendente
-    const mergedList = Array.from(mapById.values()).sort((a, b) => (b.id || 0) - (a.id || 0)).slice(0, 30);
+    const mergedList = Array.from(mapById.values()).sort((a, b) => (Number(b.id) || 0) - (Number(a.id) || 0)).slice(0, 30);
     localStorage.setItem(HISTORY_KEY, JSON.stringify(mergedList));
 
     // Si el drawer de historial está abierto o presente, actualizar vista

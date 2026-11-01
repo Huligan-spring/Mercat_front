@@ -256,8 +256,19 @@ export async function createProduct({ barcode, name, price, makeGlobal = undefin
     });
 
     if (!response.ok) {
-      const errBody = await response.json().catch(() => ({}));
-      throw new Error(errBody.error || `No se pudo crear el producto. Código: ${response.status}`);
+      let errorMsg = `No se pudo guardar el producto (Código: ${response.status})`;
+      try {
+        const text = await response.text();
+        if (text) {
+          try {
+            const json = JSON.parse(text);
+            errorMsg = json.message || json.error || text;
+          } catch {
+            errorMsg = text;
+          }
+        }
+      } catch (e) {}
+      throw new Error(errorMsg);
     }
 
     return await response.json();

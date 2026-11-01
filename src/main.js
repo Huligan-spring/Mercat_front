@@ -396,25 +396,39 @@ formEditProductEl?.addEventListener('submit', async (e) => {
     return;
   }
 
-  // Intercepción Just-In-Time si no está autenticado
+  // 1. Siempre actualizamos de inmediato la cesta local (memoria y localStorage)
+  // para que el usuario nunca pierda su cálculo de compra en tienda
+  updateProductInCart({
+    barcode,
+    name,
+    price
+  });
+  renderCart();
+
+  // 2. Si es usuario invitado, guardamos el cambio en la cesta activa y sugerimos login
   if (!isAuthenticated()) {
     pendingAuthAction = 'editProduct';
-    openAuthModalWithNotice('Inicia sesión o regístrate para guardar productos personalizados en tu catálogo privado.');
+    closeAllModals();
+    showToast('Precio actualizado en tu cesta local', 'check_circle');
+    openAuthModalWithNotice('Inicia sesión o regístrate si deseas guardar este producto de forma permanente en tu catálogo privado.');
     return;
   }
 
+  // 3. Sincronización en la nube con Supabase a través del backend
   try {
     showToast('Guardando cambios en el catálogo...', 'cloud_upload');
     const saved = await createProduct({ barcode, name, price, makeGlobal });
 
-    // Actualizamos el carrito local en memoria y en localStorage
-    updateProductInCart({
-      id: saved.id,
-      barcode: saved.barcode,
-      name: saved.name,
-      price: saved.price
-    });
-    renderCart();
+    // Si el backend forkeó el producto con un nuevo ID, actualizamos la referencia en el carrito
+    if (saved && saved.id) {
+      updateProductInCart({
+        id: saved.id,
+        barcode: saved.barcode,
+        name: saved.name,
+        price: saved.price
+      });
+      renderCart();
+    }
 
     closeAllModals();
     currentEditingItem = null;
@@ -424,7 +438,10 @@ formEditProductEl?.addEventListener('submit', async (e) => {
       : '¡Producto guardado en tu catálogo personal!';
     showToast(successMsg, 'task_alt');
   } catch (err) {
-    showToast(`Error al guardar: ${err.message}`, 'error');
+    closeAllModals();
+    currentEditingItem = null;
+    console.warn('[CartEdit] Error al sincronizar con el catálogo remoto:', err);
+    showToast(`Guardado en cesta (Nube: ${err.message})`, 'info');
   }
 });
 
